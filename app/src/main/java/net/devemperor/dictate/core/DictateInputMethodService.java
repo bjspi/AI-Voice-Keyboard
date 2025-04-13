@@ -2,8 +2,10 @@ package net.devemperor.dictate.core;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
@@ -105,7 +107,7 @@ public class DictateInputMethodService extends InputMethodService {
     private boolean spaceButtonUserHasSwiped = false;
     private int currentInputLanguagePos;
     private String currentInputLanguageValue;
-    
+
     // Variable für das Wort-löschen Feature
     private int selectedWordCount = 0; // Anzahl der selektierten Wörter
     private int initialCursorPosition = 0; // Initiale Cursorposition beim Drücken
@@ -117,10 +119,10 @@ public class DictateInputMethodService extends InputMethodService {
 
     // Flag, ob IME frisch gebunden wurde
     private boolean imeJustBound = false;
-    
+
     // Variable für den temporären alwaysUse Prompt
     private PromptModel temporaryAlwaysUsePrompt = null;
-    
+
     // Flag, ob die Tastatur bereits sichtbar war
     private boolean keyboardWasVisible = false;
 
@@ -169,6 +171,8 @@ public class DictateInputMethodService extends InputMethodService {
 
     UsageDatabaseHelper usageDb;
 
+    private boolean isBluetoothScoStarted = false;
+
     // start method that is called when user opens the keyboard
     @SuppressLint("ClickableViewAccessibility")
     @Override
@@ -189,7 +193,7 @@ public class DictateInputMethodService extends InputMethodService {
 
         // Initialisiere keyboardWasVisible auf false, da die Tastatur neu erstellt wird
         keyboardWasVisible = false;
-        
+
         // Zurücksetzen der Wort-löschen Feature-Variablen
         selectedWordCount = 0;
         initialCursorPosition = 0;
@@ -400,7 +404,7 @@ public class DictateInputMethodService extends InputMethodService {
                         // Berechne die Anzahl der zu selektierenden Wörter basierend auf der Wischdistanz
                         if (deltaX < -30) { // Mindestens 30px nach links
                             int wordsToSelect = Math.abs((int) (deltaX / SWIPE_THRESHOLD_PER_WORD)) + 1; // +1, damit auch bei kurzen Swipes ein Wort selektiert wird
-                            
+
                             // Nur aktualisieren, wenn sich die Anzahl geändert hat
                             if (wordsToSelect != selectedWordCount) {
                                 selectedWordCount = wordsToSelect;
@@ -432,12 +436,12 @@ public class DictateInputMethodService extends InputMethodService {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 // Debugging-Ausgabe für den Switch-Button
                 Log.d("DictateInputMethodService", "Switch button clicked");
-                
+
                 // Prüfen, ob die vorherige Tastatur dieselbe ist wie die aktuelle
                 if (isPreviousImeSameAsCurrent()) {
                     // Debugging-Ausgabe
                     Log.d("DictateInputMethodService", "Previous IME is same as current or current is default, showing input method picker");
-                    
+
                     // Wenn die vorherige Tastatur dieselbe ist oder die aktuelle Tastatur die Standardtastatur ist,
                     // zeige das Tastaturwechsel-Overlay an
                     InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
@@ -447,13 +451,13 @@ public class DictateInputMethodService extends InputMethodService {
                 } else {
                     // Debugging-Ausgabe
                     Log.d("DictateInputMethodService", "Attempting to switch to previous IME");
-                    
+
                     // Versuche zur vorherigen Tastatur zu wechseln
                     boolean switched = switchToPreviousInputMethod();
-                    
+
                     // Debugging-Ausgabe für das Ergebnis des Wechsels
                     Log.d("DictateInputMethodService", "Switch to previous IME result: " + switched);
-                    
+
                     // Wenn der Wechsel nicht erfolgreich war, zeige das Tastaturwechsel-Overlay an
                     if (!switched) {
                         Log.d("DictateInputMethodService", "Switch failed, showing input method picker");
@@ -704,7 +708,7 @@ public class DictateInputMethodService extends InputMethodService {
 
         if (speechApiThread != null) speechApiThread.shutdownNow();
         if (rewordingApiThread != null) rewordingApiThread.shutdownNow();
-        
+
         // Clean up handlers and runnables
         if (deleteHandler != null && deleteRunnable != null) {
             deleteHandler.removeCallbacks(deleteRunnable);
@@ -736,10 +740,10 @@ public class DictateInputMethodService extends InputMethodService {
         recordButton.setText(R.string.dictate_record);
         recordButton.setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_baseline_mic_20, 0, R.drawable.ic_baseline_folder_open_20, 0);
         recordButton.setEnabled(true);
-        
+
         // Setze keyboardWasVisible auf false, da die Tastatur jetzt geschlossen ist
         keyboardWasVisible = false;
-        
+
         // Zurücksetzen des temporären alwaysUse Prompts
         temporaryAlwaysUsePrompt = null;
         if (promptsAdapter != null) {
@@ -747,7 +751,7 @@ public class DictateInputMethodService extends InputMethodService {
             // Setze den Recording-Status im Adapter zurück
             promptsAdapter.setIsRecording(false);
         }
-        
+
         // Zurücksetzen der Wort-löschen Feature-Variablen
         selectedWordCount = 0;
         initialCursorPosition = 0;
@@ -758,7 +762,7 @@ public class DictateInputMethodService extends InputMethodService {
     @Override
     public void onStartInputView(EditorInfo info, boolean restarting) {
         super.onStartInputView(info, restarting);
-        
+
         // Setze imeJustBound nur, wenn die Tastatur nicht bereits sichtbar war
         if (!keyboardWasVisible) {
             imeJustBound = true;
@@ -822,7 +826,7 @@ public class DictateInputMethodService extends InputMethodService {
                                 noTextSelected2 = false;
                             }
                         }
-                        
+
                         // Only select all text if no text is currently selected
                         if(noTextSelected2) {
                             if (inputConnection2 != null) {
@@ -834,13 +838,13 @@ public class DictateInputMethodService extends InputMethodService {
                                 }
                             }
                         }
-                        
+
                         // If still no text is selected after trying to select all, abort the operation
                         if (selectedText == null || selectedText.isEmpty()) {
                             // Abort the operation - don't call startGPTApiRequest
                             return;
                         }
-                        
+
                         startGPTApiRequest(model, selectedText);  // another normal prompt clicked
                     }
                 }, position -> {
@@ -851,7 +855,7 @@ public class DictateInputMethodService extends InputMethodService {
                         if (temporaryAlwaysUsePrompt != null && model.getId() == temporaryAlwaysUsePrompt.getId()) {
                             // Wenn ja, dann entferne den temporären alwaysUse Prompt
                             temporaryAlwaysUsePrompt = null;
-                            
+
                             // Aktualisiere die Anzeige
                             if (promptsAdapter != null) {
                                 promptsAdapter.clearTemporaryAlwaysUsePrompt();
@@ -859,7 +863,7 @@ public class DictateInputMethodService extends InputMethodService {
                         } else {
                             // Wenn nein, setze diesen Prompt als temporären alwaysUse Prompt
                             temporaryAlwaysUsePrompt = model;
-                            
+
                             // Aktualisiere die Anzeige
                             if (promptsAdapter != null) {
                                 promptsAdapter.setTemporaryAlwaysUsePrompt(model);
@@ -899,7 +903,7 @@ public class DictateInputMethodService extends InputMethodService {
             int start = iterator.first();
             int end = iterator.next();
             int index = 0;
-            
+
             while (end != java.text.BreakIterator.DONE && index < overlayCharactersLl.getChildCount()) {
                 TextView charView = (TextView) overlayCharactersLl.getChildAt(index);
                 charView.setVisibility(View.VISIBLE);
@@ -908,7 +912,7 @@ public class DictateInputMethodService extends InputMethodService {
                 end = iterator.next();
                 index++;
             }
-            
+
             // Hide any remaining unused character views
             for (int i = index; i < overlayCharactersLl.getChildCount(); i++) {
                 TextView charView = (TextView) overlayCharactersLl.getChildAt(i);
@@ -948,7 +952,7 @@ public class DictateInputMethodService extends InputMethodService {
                     }
                 }, 100);  // 100ms delay
             }
-            
+
             // Setze keyboardWasVisible auf true, da die Tastatur jetzt sichtbar ist
             keyboardWasVisible = true;
         }, 50);  // 50ms delay for overall initialization
@@ -993,12 +997,19 @@ public class DictateInputMethodService extends InputMethodService {
         if (isRecording) {
             return;
         }
-        
+
         audioFile = new File(getCacheDir(), "audio.m4a");
         sp.edit().putString("net.devemperor.dictate.last_file_name", audioFile.getName()).apply();
 
+        boolean useBluetoothMic = sp.getBoolean("net.devemperor.dictate.use_bluetooth_mic", true);
+        boolean bluetoothAvailable = isBluetoothScoAvailable();
+
+        if (useBluetoothMic && bluetoothAvailable) {
+            startBluetoothSco();
+        }
+
         recorder = new MediaRecorder();
-        recorder.setAudioSource(MediaRecorder.AudioSource.MIC);
+        recorder.setAudioSource(MediaRecorder.AudioSource.MIC); // This will pick up from Bluetooth SCO when SCO is active
         recorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
         recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
         recorder.setAudioEncodingBitRate(64000);
@@ -1042,7 +1053,7 @@ public class DictateInputMethodService extends InputMethodService {
         stopSwitchButton.setBackgroundColor(getResources().getColor(R.color.dictate_recording_green, getTheme()));
         elapsedTime = 0;
         recordTimeHandler.post(recordTimeRunnable);
-        
+
         // Log the start of recording for debugging
         Log.d("DictateInputMethodService", "Recording started successfully");
     }
@@ -1062,6 +1073,10 @@ public class DictateInputMethodService extends InputMethodService {
                 Log.w("DictateInputMethodService", "Error releasing recorder: " + e.getMessage());
             }
             recorder = null;
+
+            if (isBluetoothScoStarted) {
+                stopBluetoothSco();
+            }
 
             if (recordTimeRunnable != null) {
                 recordTimeHandler.removeCallbacks(recordTimeRunnable);
@@ -1124,12 +1139,12 @@ public class DictateInputMethodService extends InputMethodService {
                 } catch (Exception e) {
                     throw new RuntimeException(e);
                 }
-                
-                if (!instantPrompt) 
+
+                if (!instantPrompt)
                 {
                     // Prüfe, ob ein "alwaysUse" Prompt vorhanden ist
                     PromptModel alwaysUsePrompt = temporaryAlwaysUsePrompt != null ? temporaryAlwaysUsePrompt : promptsDb.getAlwaysUsePrompt();
-                    
+
                     InputConnection inputConnection = getCurrentInputConnection();
                     if (inputConnection != null) {
                         if (alwaysUsePrompt != null) {
@@ -1181,7 +1196,7 @@ public class DictateInputMethodService extends InputMethodService {
             } catch (RuntimeException e) {
                 // Detailliertes Logging des Fehlers
                 Log.e("DictateAPI", "Fehler bei der Transkriptionsanfrage", e);
-                
+
                 if (!(e.getCause() instanceof InterruptedIOException)) {
                     sendLogToCrashlytics(e);
                     if (vibrationEnabled) vibrator.vibrate(VibrationEffect.createOneShot(300, VibrationEffect.DEFAULT_AMPLITUDE));
@@ -1191,7 +1206,7 @@ public class DictateInputMethodService extends InputMethodService {
                             resendButton.setVisibility(View.VISIBLE);
                             String message = Objects.requireNonNull(e.getMessage()).toLowerCase();
                             Log.e("DictateAPI", "Fehlermeldung: " + message);
-                            
+
                             if (message.contains("api key")) {
                                 Log.e("DictateAPI", "Ungültiger API-Schlüssel erkannt");
                                 showInfo("invalid_api_key");
@@ -1283,14 +1298,14 @@ public class DictateInputMethodService extends InputMethodService {
 
                     // Logging für die API-Anfrage (ohne API-Key)
                 Log.d("DictateAPI", "Rewording-Anfrage - URL: " + apiHost + ", Modell: " + rewordingModel + ", Prompt: " + prompt);
-                
+
                 ChatCompletionCreateParams chatCompletionCreateParams = ChatCompletionCreateParams.builder()
                         .addUserMessage(prompt)
                         .model(rewordingModel)
                         .build();
                 ChatCompletion chatCompletion = clientBuilder.build().chat().completions().create(chatCompletionCreateParams);
                 rewordedText = chatCompletion.choices().get(0).message().content().orElse("");
-                
+
                 // Logging der Antwort (ohne API-Key)
                 Log.d("DictateAPI", "Rewording-Antwort erhalten: " + rewordedText);
 
@@ -1310,7 +1325,7 @@ public class DictateInputMethodService extends InputMethodService {
                             shouldSwitchImeAfterTranscription = false;
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                                 switchToPreviousInputMethod();
-                            }                            
+                            }
                         }
                     } else {
                         int speed = sp.getInt("net.devemperor.dictate.output_speed", 5);
@@ -1324,7 +1339,7 @@ public class DictateInputMethodService extends InputMethodService {
             } catch (RuntimeException e) {
                 // Detailliertes Logging des Fehlers
                 Log.e("DictateAPI", "Fehler bei der Rewording-Anfrage", e);
-                
+
                 if (!(e.getCause() instanceof InterruptedIOException)) {
                     sendLogToCrashlytics(e);
                     if (vibrationEnabled) vibrator.vibrate(VibrationEffect.createOneShot(300, VibrationEffect.DEFAULT_AMPLITUDE));
@@ -1334,7 +1349,7 @@ public class DictateInputMethodService extends InputMethodService {
                             resendButton.setVisibility(View.VISIBLE);
                             String message = Objects.requireNonNull(e.getMessage()).toLowerCase();
                             Log.e("DictateAPI", "Fehlermeldung: " + message);
-                            
+
                             if (message.contains("api key")) {
                                 Log.e("DictateAPI", "Ungültiger API-Schlüssel erkannt");
                                 showInfo("invalid_api_key");
@@ -1368,7 +1383,7 @@ public class DictateInputMethodService extends InputMethodService {
             });
         });
     }
- 
+
     private void sendLogToCrashlytics(Exception e) {
         // get all values from SharedPreferences and add them as custom keys to crashlytics
         /*FirebaseCrashlytics crashlytics = FirebaseCrashlytics.getInstance();
@@ -1517,11 +1532,11 @@ public class DictateInputMethodService extends InputMethodService {
                     String text = extractedText.text.toString();
                     java.text.BreakIterator iterator = java.text.BreakIterator.getCharacterInstance();
                     iterator.setText(text);
-                    
+
                     // Find the last grapheme cluster
                     int end = iterator.last();
                     int start = iterator.previous();
-                    
+
                     // If we have a valid grapheme cluster, delete it
                     if (start != java.text.BreakIterator.DONE && end != java.text.BreakIterator.DONE) {
                         // Calculate how many Java characters (UTF-16 code units) to delete
@@ -1545,12 +1560,12 @@ public class DictateInputMethodService extends InputMethodService {
         if (extractedText != null && extractedText.text != null && extractedText.text.length() > 0) {
             String text = extractedText.text.toString();
             int cursorPosition = initialCursorPosition;
-            
+
             // Sicherstellen, dass die Cursorposition nicht außerhalb des Textes liegt
             if (cursorPosition > text.length()) {
                 cursorPosition = text.length();
             }
-            
+
             // Berechne die Startposition für die Selektion
             int selectionStart = cursorPosition;
             for (int i = 0; i < wordCount; i++) {
@@ -1561,7 +1576,7 @@ public class DictateInputMethodService extends InputMethodService {
                     break; // Kein weiteres Wort gefunden
                 }
             }
-            
+
             // Selektiere den Text vom Anfang des ersten Wortes bis zur ursprünglichen Cursorposition
             inputConnection.setSelection(selectionStart, cursorPosition);
         } else {
@@ -1570,7 +1585,7 @@ public class DictateInputMethodService extends InputMethodService {
             if (textBeforeCursor != null) {
                 String text = textBeforeCursor.toString();
                 int cursorPosition = text.length();
-                
+
                 // Berechne die Startposition für die Selektion
                 int selectionStart = cursorPosition;
                 for (int i = 0; i < wordCount; i++) {
@@ -1581,28 +1596,28 @@ public class DictateInputMethodService extends InputMethodService {
                         break; // Kein weiteres Wort gefunden
                     }
                 }
-                
+
                 // Selektiere den Text vom Anfang des ersten Wortes bis zur ursprünglichen Cursorposition
                 inputConnection.setSelection(selectionStart, cursorPosition);
             }
         }
     }
-    
+
     private int findWordStart(String text, int position) {
         // Finde den Anfang des letzten Wortes rückwärts von der Position
         if (position <= 0) return -1;
-        
+
         // Überspringe Leerzeichen und Sonderzeichen am Ende
         int i = position - 1;
         while (i >= 0 && !Character.isLetterOrDigit(text.charAt(i))) {
             i--;
         }
-        
+
         // Finde den Anfang des Wortes (Buchstaben und Zahlen)
         while (i >= 0 && Character.isLetterOrDigit(text.charAt(i))) {
             i--;
         }
-        
+
         return i + 1;
     }
 
@@ -1624,47 +1639,47 @@ public class DictateInputMethodService extends InputMethodService {
             }
         }
     }
-    
+
     // Methode zum Prüfen, ob die vorherige Tastatur dieselbe ist wie die aktuelle
     private boolean isPreviousImeSameAsCurrent() {
         try {
             // Erhalte den Namen der aktuellen Tastatur
             String currentImeId = getPackageName() + "/" + getClass().getName();
-            
+
             // Debugging-Ausgaben für ADB
             Log.d("DictateInputMethodService", "Current IME ID: " + currentImeId);
-            
+
             // Alternative Methode: Prüfe den letzten Eintrag im InputMethodHistory
             // Dies ist eine einfachere Implementierung, die in den meisten Fällen funktionieren sollte
             // Wir prüfen einfach, ob die aktuelle Tastatur die Standardtastatur ist
             String defaultImeId = android.provider.Settings.Secure.getString(
-                getContentResolver(), 
+                getContentResolver(),
                 android.provider.Settings.Secure.DEFAULT_INPUT_METHOD
             );
-            
+
             // Debugging-Ausgabe für Standard-IME
             Log.d("DictateInputMethodService", "Default IME ID: " + defaultImeId);
-            
+
             // Wenn die aktuelle Tastatur die Standardtastatur ist, gehen wir davon aus,
             // dass der Wechsel zur vorherigen Tastatur ein Wechsel zu derselben Tastatur wäre
             boolean isDefault = currentImeId != null && defaultImeId != null && currentImeId.equals(defaultImeId);
             Log.d("DictateInputMethodService", "Is current IME the default: " + isDefault);
-            
+
             return isDefault;
         } catch (Exception e) {
             // Debugging-Ausgabe für Fehler
             Log.e("DictateInputMethodService", "Error in isPreviousImeSameAsCurrent: " + e.getMessage());
             e.printStackTrace();
-            
+
             // Im Fehlerfall geben wir false zurück, um das Standardverhalten zu erhalten
             return false;
         }
     }
-    
+
     /**
      * Shared method to transcribe an audio file using the configured transcription service
      * This method can be called from anywhere in the app to transcribe audio files
-     * 
+     *
      * @param context The context to use for accessing SharedPreferences and resources
      * @param audioFile The audio file to transcribe
      * @param usageDb The usage database to track transcription usage
@@ -1674,11 +1689,11 @@ public class DictateInputMethodService extends InputMethodService {
     public static String transcribeAudioFile(Context context, File audioFile, UsageDatabaseHelper usageDb) throws Exception {
         return transcribeAudioFile(context, audioFile, usageDb, "detect", "");
     }
-    
+
     /**
      * Shared method to transcribe an audio file using the configured transcription service
      * This method can be called from anywhere in the app to transcribe audio files
-     * 
+     *
      * @param context The context to use for accessing SharedPreferences and resources
      * @param audioFile The audio file to transcribe
      * @param usageDb The usage database to track transcription usage
@@ -1689,7 +1704,7 @@ public class DictateInputMethodService extends InputMethodService {
      */
     public static String transcribeAudioFile(Context context, File audioFile, UsageDatabaseHelper usageDb, String language, String stylePrompt) throws Exception {
         SharedPreferences sp = context.getSharedPreferences("net.devemperor.dictate", Context.MODE_PRIVATE);
-        
+
         int transcriptionProvider = sp.getInt("net.devemperor.dictate.transcription_provider", 0);
         String apiHost = context.getResources().getStringArray(R.array.dictate_api_providers_values)[transcriptionProvider];
         if (apiHost.equals("custom_server")) {
@@ -1734,6 +1749,60 @@ public class DictateInputMethodService extends InputMethodService {
         usageDb.edit(transcriptionModel, DictateUtils.getAudioDuration(audioFile), 0, 0, transcriptionProvider);
 
         return resultText;
+    }
+
+    @Override
+    public void onCreate() {
+        super.onCreate();
+
+        // Register SCO state change receiver
+        IntentFilter filter = new IntentFilter(AudioManager.ACTION_SCO_AUDIO_STATE_UPDATED);
+        registerReceiver(scoStateReceiver, filter);
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+
+        // Unregister SCO state change receiver
+        unregisterReceiver(scoStateReceiver);
+
+        // Stop Bluetooth SCO if it's still running
+        if (isBluetoothScoStarted) {
+            stopBluetoothSco();
+        }
+    }
+
+    private final BroadcastReceiver scoStateReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            int state = intent.getIntExtra(AudioManager.EXTRA_SCO_AUDIO_STATE, -1);
+            if (state == AudioManager.SCO_AUDIO_STATE_CONNECTED) {
+                // Bluetooth SCO is now connected and can be used
+                Log.d("DictateInputMethodService", "Bluetooth SCO connected");
+            } else if (state == AudioManager.SCO_AUDIO_STATE_DISCONNECTED) {
+                Log.d("DictateInputMethodService", "Bluetooth SCO disconnected");
+            }
+        }
+    };
+
+    private boolean isBluetoothScoAvailable() {
+        AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+        return audioManager.isBluetoothScoAvailableOffCall();
+    }
+
+    private void startBluetoothSco() {
+        AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+        audioManager.startBluetoothSco();
+        audioManager.setBluetoothScoOn(true);
+        isBluetoothScoStarted = true;
+    }
+
+    private void stopBluetoothSco() {
+        AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+        audioManager.stopBluetoothSco();
+        audioManager.setBluetoothScoOn(false);
+        isBluetoothScoStarted = false;
     }
 
 }
