@@ -24,10 +24,12 @@ import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
+import android.provider.Settings;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.ExtractedText;
 import android.view.inputmethod.ExtractedTextRequest;
 import android.view.inputmethod.InputConnection;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
@@ -368,7 +370,39 @@ public class DictateInputMethodService extends InputMethodService {
             vibrate();
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                switchToPreviousInputMethod();
+                // Debugging-Ausgabe für den Switch-Button
+                Log.d("DictateInputMethodService", "Switch button clicked");
+                
+                // Prüfen, ob die vorherige Tastatur dieselbe ist wie die aktuelle
+                if (isPreviousImeSameAsCurrent()) {
+                    // Debugging-Ausgabe
+                    Log.d("DictateInputMethodService", "Previous IME is same as current or current is default, showing input method picker");
+                    
+                    // Wenn die vorherige Tastatur dieselbe ist oder die aktuelle Tastatur die Standardtastatur ist,
+                    // zeige das Tastaturwechsel-Overlay an
+                    InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+                    if (imm != null) {
+                        imm.showInputMethodPicker();
+                    }
+                } else {
+                    // Debugging-Ausgabe
+                    Log.d("DictateInputMethodService", "Attempting to switch to previous IME");
+                    
+                    // Versuche zur vorherigen Tastatur zu wechseln
+                    boolean switched = switchToPreviousInputMethod();
+                    
+                    // Debugging-Ausgabe für das Ergebnis des Wechsels
+                    Log.d("DictateInputMethodService", "Switch to previous IME result: " + switched);
+                    
+                    // Wenn der Wechsel nicht erfolgreich war, zeige das Tastaturwechsel-Overlay an
+                    if (!switched) {
+                        Log.d("DictateInputMethodService", "Switch failed, showing input method picker");
+                        InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+                        if (imm != null) {
+                            imm.showInputMethodPicker();
+                        }
+                    }
+                }
             }
         });
 
@@ -1379,6 +1413,42 @@ public class DictateInputMethodService extends InputMethodService {
             } else {
                 charView.setStrokeWidth(0);
             }
+        }
+    }
+    
+    // Methode zum Prüfen, ob die vorherige Tastatur dieselbe ist wie die aktuelle
+    private boolean isPreviousImeSameAsCurrent() {
+        try {
+            // Erhalte den Namen der aktuellen Tastatur
+            String currentImeId = getPackageName() + "/" + getClass().getName();
+            
+            // Debugging-Ausgaben für ADB
+            Log.d("DictateInputMethodService", "Current IME ID: " + currentImeId);
+            
+            // Alternative Methode: Prüfe den letzten Eintrag im InputMethodHistory
+            // Dies ist eine einfachere Implementierung, die in den meisten Fällen funktionieren sollte
+            // Wir prüfen einfach, ob die aktuelle Tastatur die Standardtastatur ist
+            String defaultImeId = android.provider.Settings.Secure.getString(
+                getContentResolver(), 
+                android.provider.Settings.Secure.DEFAULT_INPUT_METHOD
+            );
+            
+            // Debugging-Ausgabe für Standard-IME
+            Log.d("DictateInputMethodService", "Default IME ID: " + defaultImeId);
+            
+            // Wenn die aktuelle Tastatur die Standardtastatur ist, gehen wir davon aus,
+            // dass der Wechsel zur vorherigen Tastatur ein Wechsel zu derselben Tastatur wäre
+            boolean isDefault = currentImeId != null && defaultImeId != null && currentImeId.equals(defaultImeId);
+            Log.d("DictateInputMethodService", "Is current IME the default: " + isDefault);
+            
+            return isDefault;
+        } catch (Exception e) {
+            // Debugging-Ausgabe für Fehler
+            Log.e("DictateInputMethodService", "Error in isPreviousImeSameAsCurrent: " + e.getMessage());
+            e.printStackTrace();
+            
+            // Im Fehlerfall geben wir false zurück, um das Standardverhalten zu erhalten
+            return false;
         }
     }
 
