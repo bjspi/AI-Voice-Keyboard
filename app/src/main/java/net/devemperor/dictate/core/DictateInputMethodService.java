@@ -240,8 +240,18 @@ public class DictateInputMethodService extends InputMethodService {
                         .build())
                 .setAcceptsDelayedFocusGain(true)
                 .setOnAudioFocusChangeListener(focusChange -> {
+                    Log.d("DictateInputMethodService", "Audio focus change: " + focusChange);
                     if (focusChange == AudioManager.AUDIOFOCUS_LOSS) {
+                        Log.d("DictateInputMethodService", "Audio focus lost, stopping recording if active");
                         if (isRecording) pauseButton.performClick();
+                    } else if (focusChange == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT) {
+                        Log.d("DictateInputMethodService", "Audio focus temporarily lost");
+                        // Pause recording but don't stop it completely
+                        if (isRecording && !isPaused) pauseButton.performClick();
+                    } else if (focusChange == AudioManager.AUDIOFOCUS_GAIN) {
+                        Log.d("DictateInputMethodService", "Audio focus gained");
+                        // Resume recording if it was paused
+                        if (isRecording && isPaused) pauseButton.performClick();
                     }
                 })
                 .build();
@@ -600,120 +610,128 @@ public class DictateInputMethodService extends InputMethodService {
         super.onStartInputView(info, restarting);
         imeJustBound = true;
 
-        if (sp.getBoolean("net.devemperor.dictate.rewording_enabled", true)) {
-            promptsCl.setVisibility(View.VISIBLE);
+        // Add a small delay before checking for instant recording to ensure proper initialization
+        mainHandler.postDelayed(() -> {
+            if (sp.getBoolean("net.devemperor.dictate.rewording_enabled", true)) {
+                promptsCl.setVisibility(View.VISIBLE);
 
-            // collect all prompts from database
-            List<PromptModel> data;
-            InputConnection inputConnection = getCurrentInputConnection();
-            // Improve text selection detection
-            boolean noTextSelected = true;
-            if (inputConnection != null) {
-                CharSequence selectedText = inputConnection.getSelectedText(0);
-                noTextSelected = selectedText == null || selectedText.length() == 0;
-            }
+                // collect all prompts from database
+                List<PromptModel> data;
+                InputConnection inputConnection = getCurrentInputConnection();
+                // Improve text selection detection
+                boolean noTextSelected = true;
+                if (inputConnection != null) {
+                    CharSequence selectedText = inputConnection.getSelectedText(0);
+                    noTextSelected = selectedText == null || selectedText.length() == 0;
+                }
 
-            // No text selected, show all instant prompts and set select all icon
-            data = promptsDb.getAll(true);
-            editSelectAllButton.setForeground(AppCompatResources.getDrawable(this, R.drawable.ic_baseline_select_all_24));
+                // No text selected, show all instant prompts and set select all icon
+                data = promptsDb.getAll(true);
+                editSelectAllButton.setForeground(AppCompatResources.getDrawable(this, R.drawable.ic_baseline_select_all_24));
 
-            promptsAdapter = new PromptsKeyboardAdapter(data, position -> {
-                vibrate();
-                PromptModel model = data.get(position);
+                promptsAdapter = new PromptsKeyboardAdapter(data, position -> {
+                    vibrate();
+                    PromptModel model = data.get(position);
 
-                if (model.getId() == -1) {  // instant prompt clicked
-                    instantPrompt = true;
-                    if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-                        openSettingsActivity();
-                    } else if (!isRecording) {
-                        startRecording();
-                    } else {
-                        stopRecording();
-                    }
-                } else if (model.getId() == -2) {  // add prompt clicked
-                    Intent intent = new Intent(this, PromptsOverviewActivity.class);
-                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                    startActivity(intent);
-                } else {
-                    // Check text selection at the time of button click
-                    InputConnection inputConnection2 = getCurrentInputConnection();
-                    String selectedText = null;
-                    boolean noTextSelected2 = true;
-                    if (inputConnection2 != null) {
-                        CharSequence selected = inputConnection2.getSelectedText(0);
-                        if (selected != null && selected.length() > 0) {
-                            selectedText = selected.toString();
-                            noTextSelected2 = false;
+                    if (model.getId() == -1) {  // instant prompt clicked
+                        instantPrompt = true;
+                        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                            openSettingsActivity();
+                        } else if (!isRecording) {
+                            startRecording();
+                        } else {
+                            stopRecording();
                         }
-                    }
-                    
-                    // Only select all text if no text is currently selected
-                    if(noTextSelected2) {
+                    } else if (model.getId() == -2) {  // add prompt clicked
+                        Intent intent = new Intent(this, PromptsOverviewActivity.class);
+                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                        startActivity(intent);
+                    } else {
+                        // Check text selection at the time of button click
+                        InputConnection inputConnection2 = getCurrentInputConnection();
+                        String selectedText = null;
+                        boolean noTextSelected2 = true;
                         if (inputConnection2 != null) {
-                            inputConnection2.performContextMenuAction(android.R.id.selectAll);
-                            // Get the newly selected text
-                            CharSequence newlySelected = inputConnection2.getSelectedText(0);
-                            if (newlySelected != null && newlySelected.length() > 0) {
-                                selectedText = newlySelected.toString();
+                            CharSequence selected = inputConnection2.getSelectedText(0);
+                            if (selected != null && selected.length() > 0) {
+                                selectedText = selected.toString();
+                                noTextSelected2 = false;
                             }
                         }
+                        
+                        // Only select all text if no text is currently selected
+                        if(noTextSelected2) {
+                            if (inputConnection2 != null) {
+                                inputConnection2.performContextMenuAction(android.R.id.selectAll);
+                                // Get the newly selected text
+                                CharSequence newlySelected = inputConnection2.getSelectedText(0);
+                                if (newlySelected != null && newlySelected.length() > 0) {
+                                    selectedText = newlySelected.toString();
+                                }
+                            }
+                        }
+                        startGPTApiRequest(model, selectedText);  // another normal prompt clicked
                     }
-                    startGPTApiRequest(model, selectedText);  // another normal prompt clicked
-                }
-            });
-            promptsRv.setAdapter(promptsAdapter);
-        } else {
-            promptsCl.setVisibility(View.GONE);
-        }
-
-        // enable resend button if previous audio file still exists in cache
-        if (new File(getCacheDir(), sp.getString("net.devemperor.dictate.last_file_name", "audio.m4a")).exists()
-                && sp.getBoolean("net.devemperor.dictate.resend_button", false)) {
-            resendButton.setVisibility(View.VISIBLE);
-        } else {
-            resendButton.setVisibility(View.GONE);
-        }
-
-        // fill all overlay characters
-        String charactersString = sp.getString("net.devemperor.dictate.overlay_characters", "()-:!?,.");
-        for (int i = 0; i < overlayCharactersLl.getChildCount(); i++) {
-            TextView charView = (TextView) overlayCharactersLl.getChildAt(i);
-            if (i >= charactersString.length()) {
-                charView.setVisibility(View.GONE);
+                });
+                promptsRv.setAdapter(promptsAdapter);
             } else {
-                charView.setVisibility(View.VISIBLE);
-                charView.setText(charactersString.substring(i, i + 1));
+                promptsCl.setVisibility(View.GONE);
             }
-        }
 
-        // get the currently selected input language
-        recordButton.setText(getDictateButtonText());
+            // enable resend button if previous audio file still exists in cache
+            if (new File(getCacheDir(), sp.getString("net.devemperor.dictate.last_file_name", "audio.m4a")).exists()
+                    && sp.getBoolean("net.devemperor.dictate.resend_button", false)) {
+                resendButton.setVisibility(View.VISIBLE);
+            } else {
+                resendButton.setVisibility(View.GONE);
+            }
 
-        // check if user enabled audio focus
-        audioFocusEnabled = sp.getBoolean("net.devemperor.dictate.audio_focus", true);
+            // fill all overlay characters
+            String charactersString = sp.getString("net.devemperor.dictate.overlay_characters", "()-:!?,.");
+            for (int i = 0; i < overlayCharactersLl.getChildCount(); i++) {
+                TextView charView = (TextView) overlayCharactersLl.getChildAt(i);
+                if (i >= charactersString.length()) {
+                    charView.setVisibility(View.GONE);
+                } else {
+                    charView.setVisibility(View.VISIBLE);
+                    charView.setText(charactersString.substring(i, i + 1));
+                }
+            }
 
-        // show infos for updates, ratings or donations
-        long totalAudioTime = usageDb.getTotalAudioTime();
-        if (sp.getInt("net.devemperor.dictate.last_version_code", 0) < BuildConfig.VERSION_CODE) {
-            showInfo("update");
-        } /*else if (totalAudioTime > 180 && totalAudioTime <= 600 && !sp.getBoolean("net.devemperor.dictate.flag_has_rated_in_playstore", false)) {
-            showInfo("rate");  // in case someone had Dictate installed before, he shouldn't get both messages
-        } else if (totalAudioTime > 600 && !sp.getBoolean("net.devemperor.dictate.flag_has_donated", false)) {
-            showInfo("donate");
-        }*/
+            // get the currently selected input language
+            recordButton.setText(getDictateButtonText());
 
-        // start audio file transcription if user selected an audio file
-        if (!sp.getString("net.devemperor.dictate.transcription_audio_file", "").isEmpty()) {
-            audioFile = new File(getCacheDir(), sp.getString("net.devemperor.dictate.transcription_audio_file", ""));
-            sp.edit().putString("net.devemperor.dictate.last_file_name", audioFile.getName()).apply();
+            // check if user enabled audio focus
+            audioFocusEnabled = sp.getBoolean("net.devemperor.dictate.audio_focus", true);
 
-            sp.edit().remove("net.devemperor.dictate.transcription_audio_file").apply();
-            startWhisperApiRequest();
+            // show infos for updates, ratings or donations
+            long totalAudioTime = usageDb.getTotalAudioTime();
+            if (sp.getInt("net.devemperor.dictate.last_version_code", 0) < BuildConfig.VERSION_CODE) {
+                showInfo("update");
+            } /*else if (totalAudioTime > 180 && totalAudioTime <= 600 && !sp.getBoolean("net.devemperor.dictate.flag_has_rated_in_playstore", false)) {
+                showInfo("rate");  // in case someone had Dictate installed before, he shouldn't get both messages
+            } else if (totalAudioTime > 600 && !sp.getBoolean("net.devemperor.dictate.flag_has_donated", false)) {
+                showInfo("donate");
+            }*/
 
-        } else if (sp.getBoolean("net.devemperor.dictate.instant_recording", false) && imeJustBound) {
-            imeJustBound = false;
-            recordButton.performClick();
-        }
+            // start audio file transcription if user selected an audio file
+            if (!sp.getString("net.devemperor.dictate.transcription_audio_file", "").isEmpty()) {
+                audioFile = new File(getCacheDir(), sp.getString("net.devemperor.dictate.transcription_audio_file", ""));
+                sp.edit().putString("net.devemperor.dictate.last_file_name", audioFile.getName()).apply();
+
+                sp.edit().remove("net.devemperor.dictate.transcription_audio_file").apply();
+                startWhisperApiRequest();
+
+            } else if (sp.getBoolean("net.devemperor.dictate.instant_recording", false) && imeJustBound) {
+                // Add a small delay before starting instant recording to ensure proper initialization
+                mainHandler.postDelayed(() -> {
+                    if (imeJustBound) {  // Double-check that imeJustBound is still true
+                        imeJustBound = false;
+                        recordButton.performClick();
+                    }
+                }, 100);  // 100ms delay
+            }
+        }, 50);  // 50ms delay for overall initialization
     }
 
     // method is called if user changed text selection
@@ -751,6 +769,11 @@ public class DictateInputMethodService extends InputMethodService {
     }
 
     private void startRecording() {
+        // Check if we're already recording
+        if (isRecording) {
+            return;
+        }
+        
         audioFile = new File(getCacheDir(), "audio.m4a");
         sp.edit().putString("net.devemperor.dictate.last_file_name", audioFile.getName()).apply();
 
@@ -769,6 +792,16 @@ public class DictateInputMethodService extends InputMethodService {
             recorder.start();
         } catch (IOException e) {
             sendLogToCrashlytics(e);
+            // Show error to user
+            if (vibrationEnabled) vibrator.vibrate(VibrationEffect.createOneShot(300, VibrationEffect.DEFAULT_AMPLITUDE));
+            showInfo("internet_error");
+            return;
+        } catch (IllegalStateException e) {
+            sendLogToCrashlytics(e);
+            // Show error to user
+            if (vibrationEnabled) vibrator.vibrate(VibrationEffect.createOneShot(300, VibrationEffect.DEFAULT_AMPLITUDE));
+            showInfo("internet_error");
+            return;
         }
 
         recordButton.setVisibility(View.GONE);
@@ -785,14 +818,25 @@ public class DictateInputMethodService extends InputMethodService {
         stopSwitchButton.setBackgroundColor(getResources().getColor(R.color.dictate_recording_green, getTheme()));
         elapsedTime = 0;
         recordTimeHandler.post(recordTimeRunnable);
+        
+        // Log the start of recording for debugging
+        Log.d("DictateInputMethodService", "Recording started successfully");
     }
 
     private void stopRecording() {
         if (recorder != null) {
             try {
                 recorder.stop();
-            } catch (RuntimeException ignored) { }
-            recorder.release();
+                Log.d("DictateInputMethodService", "Recording stopped successfully");
+            } catch (RuntimeException e) {
+                Log.w("DictateInputMethodService", "Error stopping recording: " + e.getMessage());
+                // This can happen if recording was too short or other issues
+            }
+            try {
+                recorder.release();
+            } catch (RuntimeException e) {
+                Log.w("DictateInputMethodService", "Error releasing recorder: " + e.getMessage());
+            }
             recorder = null;
 
             if (recordTimeRunnable != null) {
@@ -805,6 +849,8 @@ public class DictateInputMethodService extends InputMethodService {
             //recordButton.setBackgroundColor(getResources().getColor(R.color.dictate_blue, getTheme()));
             stopSwitchButton.setBackgroundColor(getResources().getColor(R.color.dictate_blue, getTheme()));
             startWhisperApiRequest();
+        } else {
+            Log.w("DictateInputMethodService", "stopRecording called but recorder is null");
         }
     }
 
