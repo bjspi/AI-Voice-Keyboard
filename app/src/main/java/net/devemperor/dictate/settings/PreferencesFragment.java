@@ -75,14 +75,30 @@ public class PreferencesFragment extends PreferenceFragmentCompat {
                 if (TextUtils.isEmpty(text)) {
                     return getString(R.string.dictate_default_overlay_characters);
                 }
-                return text.chars().mapToObj(c -> String.valueOf((char) c)).collect(Collectors.joining(" "));
+                // Use BreakIterator to properly handle Unicode grapheme clusters (like emojis)
+                java.text.BreakIterator iterator = java.text.BreakIterator.getCharacterInstance();
+                iterator.setText(text);
+                StringBuilder result = new StringBuilder();
+                int start = iterator.first();
+                int end = iterator.next();
+                
+                while (end != java.text.BreakIterator.DONE) {
+                    if (result.length() > 0) {
+                        result.append(" ");
+                    }
+                    result.append(text.substring(start, end));
+                    start = end;
+                    end = iterator.next();
+                }
+                return result.toString();
             });
 
             overlayCharactersPreference.setOnBindEditTextListener(editText -> {
                 editText.setInputType(InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
                 editText.setSingleLine(true);
                 editText.setHint(R.string.dictate_default_overlay_characters);
-                editText.setFilters(new InputFilter[] {new InputFilter.LengthFilter(8)});
+                // Setze die maximale Länge auf 14 Zeichen (kann auch Emoji enthalten)
+                editText.setFilters(new InputFilter[] {new InputFilter.LengthFilter(14)});
                 editText.setSelection(editText.getText().length());
             });
 
@@ -92,6 +108,16 @@ public class PreferencesFragment extends PreferenceFragmentCompat {
                     Toast.makeText(requireContext(), R.string.dictate_overlay_characters_empty, Toast.LENGTH_SHORT).show();
                     return false;
                 }
+                
+                // Entferne alle Leerzeichen aus dem Text
+                String cleanedText = text.replaceAll("\\s+", "");
+                
+                // Wenn Leerzeichen entfernt wurden, aktualisiere den Wert
+                if (!cleanedText.equals(text)) {
+                    // Wir geben den bereinigten Text zurück, der dann als neuer Wert gespeichert wird
+                    return true;
+                }
+                
                 return true;
             });
         }

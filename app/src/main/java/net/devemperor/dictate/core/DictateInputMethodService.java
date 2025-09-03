@@ -613,7 +613,7 @@ public class DictateInputMethodService extends InputMethodService {
         }
 
         // initialize overlay characters
-        for (int i = 0; i < 8; i++) {
+        for (int i = 0; i < 14; i++) {
             MaterialButton charView = (MaterialButton) LayoutInflater.from(context).inflate(R.layout.item_overlay_characters, overlayCharactersLl, false);
             overlayCharactersLl.addView(charView);
         }
@@ -770,14 +770,26 @@ public class DictateInputMethodService extends InputMethodService {
 
             // fill all overlay characters
             String charactersString = sp.getString("net.devemperor.dictate.overlay_characters", "()-:!?,.");
-            for (int i = 0; i < overlayCharactersLl.getChildCount(); i++) {
+            // Use BreakIterator to properly handle Unicode grapheme clusters (like emojis)
+            java.text.BreakIterator iterator = java.text.BreakIterator.getCharacterInstance();
+            iterator.setText(charactersString);
+            int start = iterator.first();
+            int end = iterator.next();
+            int index = 0;
+            
+            while (end != java.text.BreakIterator.DONE && index < overlayCharactersLl.getChildCount()) {
+                TextView charView = (TextView) overlayCharactersLl.getChildAt(index);
+                charView.setVisibility(View.VISIBLE);
+                charView.setText(charactersString.substring(start, end));
+                start = end;
+                end = iterator.next();
+                index++;
+            }
+            
+            // Hide any remaining unused character views
+            for (int i = index; i < overlayCharactersLl.getChildCount(); i++) {
                 TextView charView = (TextView) overlayCharactersLl.getChildAt(i);
-                if (i >= charactersString.length()) {
-                    charView.setVisibility(View.GONE);
-                } else {
-                    charView.setVisibility(View.VISIBLE);
-                    charView.setText(charactersString.substring(i, i + 1));
-                }
+                charView.setVisibility(View.GONE);
             }
 
             // get the currently selected input language
