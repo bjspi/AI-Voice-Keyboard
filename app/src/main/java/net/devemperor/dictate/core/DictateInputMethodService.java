@@ -1404,7 +1404,30 @@ public class DictateInputMethodService extends InputMethodService {
             if (selectedText != null) {
                 inputConnection.commitText("", 1);
             } else {
-                inputConnection.deleteSurroundingText(1, 0);
+                // Use BreakIterator to properly handle Unicode grapheme clusters (like emojis)
+                ExtractedText extractedText = inputConnection.getExtractedText(new ExtractedTextRequest(), 0);
+                if (extractedText != null && extractedText.text != null && extractedText.text.length() > 0) {
+                    String text = extractedText.text.toString();
+                    java.text.BreakIterator iterator = java.text.BreakIterator.getCharacterInstance();
+                    iterator.setText(text);
+                    
+                    // Find the last grapheme cluster
+                    int end = iterator.last();
+                    int start = iterator.previous();
+                    
+                    // If we have a valid grapheme cluster, delete it
+                    if (start != java.text.BreakIterator.DONE && end != java.text.BreakIterator.DONE) {
+                        // Calculate how many Java characters (UTF-16 code units) to delete
+                        int charCount = end - start;
+                        inputConnection.deleteSurroundingText(charCount, 0);
+                    } else {
+                        // Fallback to deleting one character if BreakIterator fails
+                        inputConnection.deleteSurroundingText(1, 0);
+                    }
+                } else {
+                    // Fallback to deleting one character if no text is available
+                    inputConnection.deleteSurroundingText(1, 0);
+                }
             }
         }
     }
