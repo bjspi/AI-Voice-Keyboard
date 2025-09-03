@@ -604,22 +604,16 @@ public class DictateInputMethodService extends InputMethodService {
             // collect all prompts from database
             List<PromptModel> data;
             InputConnection inputConnection = getCurrentInputConnection();
-            boolean noTextSelected = inputConnection != null && inputConnection.getSelectedText(0) == null;
+            // Improve text selection detection
+            boolean noTextSelected = true;
+            if (inputConnection != null) {
+                CharSequence selectedText = inputConnection.getSelectedText(0);
+                noTextSelected = selectedText == null || selectedText.length() == 0;
+            }
 
-            // Always show all instant prompts even if no text is selected
+            // No text selected, show all instant prompts and set select all icon
             data = promptsDb.getAll(true);
             editSelectAllButton.setForeground(AppCompatResources.getDrawable(this, R.drawable.ic_baseline_select_all_24));
-
-            /*
-            if (inputConnection != null && inputConnection.getSelectedText(0) == null) {
-                
-                data = promptsDb.getAll(true);
-                editSelectAllButton.setForeground(AppCompatResources.getDrawable(this, R.drawable.ic_baseline_select_all_24));
-            } else {
-                data = promptsDb.getAll(true);
-                editSelectAllButton.setForeground(AppCompatResources.getDrawable(this, R.drawable.ic_baseline_deselect_24));
-            }
-            */
 
             promptsAdapter = new PromptsKeyboardAdapter(data, position -> {
                 vibrate();
@@ -639,10 +633,30 @@ public class DictateInputMethodService extends InputMethodService {
                     intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                     startActivity(intent);
                 } else {
-                    if(noTextSelected) {
-                        inputConnection.performContextMenuAction(android.R.id.selectAll);
+                    // Check text selection at the time of button click
+                    InputConnection inputConnection2 = getCurrentInputConnection();
+                    String selectedText = null;
+                    boolean noTextSelected2 = true;
+                    if (inputConnection2 != null) {
+                        CharSequence selected = inputConnection2.getSelectedText(0);
+                        if (selected != null && selected.length() > 0) {
+                            selectedText = selected.toString();
+                            noTextSelected2 = false;
+                        }
                     }
-                    startGPTApiRequest(model);  // another normal prompt clicked
+                    
+                    // Only select all text if no text is currently selected
+                    if(noTextSelected2) {
+                        if (inputConnection2 != null) {
+                            inputConnection2.performContextMenuAction(android.R.id.selectAll);
+                            // Get the newly selected text
+                            CharSequence newlySelected = inputConnection2.getSelectedText(0);
+                            if (newlySelected != null && newlySelected.length() > 0) {
+                                selectedText = newlySelected.toString();
+                            }
+                        }
+                    }
+                    startGPTApiRequest(model, selectedText);  // another normal prompt clicked
                 }
             });
             promptsRv.setAdapter(promptsAdapter);
@@ -884,7 +898,16 @@ public class DictateInputMethodService extends InputMethodService {
                 } else {
                     // continue with ChatGPT API request
                     instantPrompt = false;
-                    startGPTApiRequest(new PromptModel(-1, Integer.MIN_VALUE, "", resultText, false));
+                    // Get selected text for instant prompt
+                    String selectedText = null;
+                    InputConnection inputConnection = getCurrentInputConnection();
+                    if (inputConnection != null) {
+                        CharSequence selected = inputConnection.getSelectedText(0);
+                        if (selected != null && selected.length() > 0) {
+                            selectedText = selected.toString();
+                        }
+                    }
+                    startGPTApiRequest(new PromptModel(-1, Integer.MIN_VALUE, "", resultText, false), selectedText);
                 }
 
                 if (new File(getCacheDir(), sp.getString("net.devemperor.dictate.last_file_name", "audio.m4a")).exists()
@@ -929,7 +952,7 @@ public class DictateInputMethodService extends InputMethodService {
         });
     }
 
-    private void startGPTApiRequest(PromptModel model) {
+    private void startGPTApiRequest(PromptModel model, String selectedText) {
         mainHandler.post(() -> {
             promptsRv.setVisibility(View.GONE);
             runningPromptTv.setVisibility(View.VISIBLE);
@@ -970,8 +993,8 @@ public class DictateInputMethodService extends InputMethodService {
                     rewordedText = prompt.substring(1, prompt.length() - 1);
                 } else {
                     prompt += "\n\n" + DictateUtils.PROMPT_REWORDING_BE_PRECISE;
-                    if (getCurrentInputConnection().getSelectedText(0) != null) {
-                        prompt += "\n\n" + getCurrentInputConnection().getSelectedText(0).toString();
+                    if (selectedText != null) {
+                        prompt += "\n\n" + selectedText;
                     }
 
                     ChatCompletionCreateParams chatCompletionCreateParams = ChatCompletionCreateParams.builder()
