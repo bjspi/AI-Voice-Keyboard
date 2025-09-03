@@ -161,9 +161,9 @@ public class DictateInputMethodService extends InputMethodService {
         Context context = new ContextThemeWrapper(this, R.style.Theme_Dictate);
 
         // initialize some stuff
-        mainHandler = new Handler(Looper.getMainLooper());
-        deleteHandler = new Handler();
-        recordTimeHandler = new Handler(Looper.getMainLooper());
+        if (mainHandler == null) mainHandler = new Handler(Looper.getMainLooper());
+        if (deleteHandler == null) deleteHandler = new Handler();
+        if (recordTimeHandler == null) recordTimeHandler = new Handler(Looper.getMainLooper());
 
         vibrator = (Vibrator) getSystemService(VIBRATOR_SERVICE);
         sp = getSharedPreferences("net.devemperor.dictate", MODE_PRIVATE);
@@ -225,9 +225,16 @@ public class DictateInputMethodService extends InputMethodService {
             @Override
             public void run() {
                 elapsedTime += 100;
-                stopButton.setText(getString(R.string.dictate_send,
-                        String.format(Locale.getDefault(), "%02d:%02d", (int) (elapsedTime / 60000), (int) (elapsedTime / 1000) % 60)));
-                recordTimeHandler.postDelayed(this, 100);
+                // Performance-Optimierung: Nur aktualisieren, wenn der Text sich tatsächlich ändert
+                String newText = getString(R.string.dictate_send,
+                        String.format(Locale.getDefault(), "%02d:%02d", (int) (elapsedTime / 60000), (int) (elapsedTime / 1000) % 60));
+                if (!stopButton.getText().equals(newText)) {
+                    stopButton.setText(newText);
+                }
+                // Performance-Optimierung: Prüfung auf null bevor postDelayed aufgerufen wird
+                if (recordTimeHandler != null) {
+                    recordTimeHandler.postDelayed(this, 100);
+                }
             }
         };
 
@@ -329,11 +336,17 @@ public class DictateInputMethodService extends InputMethodService {
                             vibrate();
                             currentDeleteDelay = 5;
                         }
-                        deleteHandler.postDelayed(this, currentDeleteDelay);
+                        // Performance-Optimierung: Prüfung auf null bevor postDelayed aufgerufen wird
+                        if (deleteHandler != null) {
+                            deleteHandler.postDelayed(this, currentDeleteDelay);
+                        }
                     }
                 }
             };
-            deleteHandler.post(deleteRunnable);
+            // Performance-Optimierung: Prüfung auf null bevor post aufgerufen wird
+            if (deleteHandler != null && deleteRunnable != null) {
+                deleteHandler.post(deleteRunnable);
+            }
             return true;
         });
 
@@ -587,6 +600,23 @@ public class DictateInputMethodService extends InputMethodService {
 
         if (speechApiThread != null) speechApiThread.shutdownNow();
         if (rewordingApiThread != null) rewordingApiThread.shutdownNow();
+        
+        // Clean up handlers and runnables
+        if (deleteHandler != null && deleteRunnable != null) {
+            deleteHandler.removeCallbacks(deleteRunnable);
+        }
+        if (recordTimeHandler != null && recordTimeRunnable != null) {
+            recordTimeHandler.removeCallbacks(recordTimeRunnable);
+        }
+        if (mainHandler != null) {
+            mainHandler.removeCallbacksAndMessages(null);
+        }
+        if (deleteHandler != null) {
+            deleteHandler.removeCallbacksAndMessages(null);
+        }
+        if (recordTimeHandler != null) {
+            recordTimeHandler.removeCallbacksAndMessages(null);
+        }
 
         pauseButton.setForeground(AppCompatResources.getDrawable(this, R.drawable.ic_baseline_pause_24));
         stopButton.setVisibility(View.GONE);
@@ -609,6 +639,11 @@ public class DictateInputMethodService extends InputMethodService {
     public void onStartInputView(EditorInfo info, boolean restarting) {
         super.onStartInputView(info, restarting);
         imeJustBound = true;
+
+        // Reinitialize handlers if they were cleaned up
+        if (mainHandler == null) mainHandler = new Handler(Looper.getMainLooper());
+        if (deleteHandler == null) deleteHandler = new Handler();
+        if (recordTimeHandler == null) recordTimeHandler = new Handler(Looper.getMainLooper());
 
         // Add a small delay before checking for instant recording to ensure proper initialization
         mainHandler.postDelayed(() -> {
@@ -882,6 +917,10 @@ public class DictateInputMethodService extends InputMethodService {
                 stylePrompt = "";
         }
 
+        // Shutdown any existing thread before creating a new one
+        if (speechApiThread != null && !speechApiThread.isShutdown()) {
+            speechApiThread.shutdownNow();
+        }
         speechApiThread = Executors.newSingleThreadExecutor();
         speechApiThread.execute(() -> {
             try {
@@ -915,8 +954,14 @@ public class DictateInputMethodService extends InputMethodService {
                     if (DictateUtils.isValidProxy(proxyHost)) DictateUtils.applyProxy(clientBuilder, sp);
                 }
 
+                // Logging für die API-Anfrage (ohne API-Key)
+                Log.d("DictateAPI", "Transkriptionsanfrage - URL: " + apiHost + ", Modell: " + transcriptionModel);
+                
                 Transcription transcription = clientBuilder.build().audio().transcriptions().create(transcriptionBuilder.build()).asTranscription();
                 String resultText = transcription.text().strip();  // Groq sometimes adds leading whitespace
+                
+                // Logging der Transkription (ohne API-Key)
+                Log.d("DictateAPI", "Transkription erhalten: " + resultText);
 
                 usageDb.edit(transcriptionModel, DictateUtils.getAudioDuration(audioFile), 0, 0, transcriptionProvider);
 
@@ -937,6 +982,7 @@ public class DictateInputMethodService extends InputMethodService {
                             }
                         } else {
                             int speed = sp.getInt("net.devemperor.dictate.output_speed", 5);
+                            // Schrittweise Textausgabe (kann in den Einstellungen aktiviert werden)
                             for (int i = 0; i < resultText.length(); i++) {
                                 char character = resultText.charAt(i);
                                 mainHandler.postDelayed(() -> inputConnection.commitText(String.valueOf(character), 1), (long) (i * (20L / (speed / 5f))));
@@ -964,31 +1010,48 @@ public class DictateInputMethodService extends InputMethodService {
                 }
 
             } catch (RuntimeException e) {
+                // Detailliertes Logging des Fehlers
+                Log.e("DictateAPI", "Fehler bei der Transkriptionsanfrage", e);
+                
                 if (!(e.getCause() instanceof InterruptedIOException)) {
                     sendLogToCrashlytics(e);
                     if (vibrationEnabled) vibrator.vibrate(VibrationEffect.createOneShot(300, VibrationEffect.DEFAULT_AMPLITUDE));
-                    mainHandler.post(() -> {
-                        resendButton.setVisibility(View.VISIBLE);
-                        String message = Objects.requireNonNull(e.getMessage()).toLowerCase();
-                        if (message.contains("api key")) {
-                            showInfo("invalid_api_key");
-                        } else if (message.contains("quota")) {
-                            showInfo("quota_exceeded");
-                        } else if (message.contains("audio duration") || message.contains("content size limit")) {  // gpt-o-transcribe and whisper have different limits
-                            showInfo("content_size_limit");
-                        } else if (message.contains("format")) {
-                            showInfo("format_not_supported");
-                        } else {
-                            showInfo("internet_error");
-                        }
-                    });
+                    // Performance-Optimierung: Prüfung auf null bevor post aufgerufen wird
+                    if (mainHandler != null) {
+                        mainHandler.post(() -> {
+                            resendButton.setVisibility(View.VISIBLE);
+                            String message = Objects.requireNonNull(e.getMessage()).toLowerCase();
+                            Log.e("DictateAPI", "Fehlermeldung: " + message);
+                            
+                            if (message.contains("api key")) {
+                                Log.e("DictateAPI", "Ungültiger API-Schlüssel erkannt");
+                                showInfo("invalid_api_key");
+                            } else if (message.contains("quota")) {
+                                Log.e("DictateAPI", "Quota überschritten");
+                                showInfo("quota_exceeded");
+                            } else if (message.contains("audio duration") || message.contains("content size limit")) {  // gpt-o-transcribe and whisper have different limits
+                                Log.e("DictateAPI", "Audioinhalt zu groß");
+                                showInfo("content_size_limit");
+                            } else if (message.contains("format")) {
+                                Log.e("DictateAPI", "Nicht unterstütztes Audioformat");
+                                showInfo("format_not_supported");
+                            } else {
+                                Log.e("DictateAPI", "Allgemeiner Internetfehler");
+                                showInfo("internet_error");
+                            }
+                        });
+                    }
                 } else if (e.getCause().getMessage() != null && (e.getCause().getMessage().contains("timeout") || e.getCause().getMessage().contains("failed to connect"))) {
+                    Log.e("DictateAPI", "Timeout oder Verbindungsfehler", e);
                     sendLogToCrashlytics(e);
                     if (vibrationEnabled) vibrator.vibrate(VibrationEffect.createOneShot(300, VibrationEffect.DEFAULT_AMPLITUDE));
-                    mainHandler.post(() -> {
-                        resendButton.setVisibility(View.VISIBLE);
-                        showInfo("timeout");
-                    });
+                    // Performance-Optimierung: Prüfung auf null bevor post aufgerufen wird
+                    if (mainHandler != null) {
+                        mainHandler.post(() -> {
+                            resendButton.setVisibility(View.VISIBLE);
+                            showInfo("timeout");
+                        });
+                    }
                 }
             }
 
@@ -1009,6 +1072,10 @@ public class DictateInputMethodService extends InputMethodService {
             infoCl.setVisibility(View.GONE);
         });
 
+        // Shutdown any existing thread before creating a new one
+        if (rewordingApiThread != null && !rewordingApiThread.isShutdown()) {
+            rewordingApiThread.shutdownNow();
+        }
         rewordingApiThread = Executors.newSingleThreadExecutor();
         rewordingApiThread.execute(() -> {
             try {
@@ -1045,16 +1112,22 @@ public class DictateInputMethodService extends InputMethodService {
                         prompt += "\n\n" + selectedText;
                     }
 
-                    ChatCompletionCreateParams chatCompletionCreateParams = ChatCompletionCreateParams.builder()
-                            .addUserMessage(prompt)
-                            .model(rewordingModel)
-                            .build();
-                    ChatCompletion chatCompletion = clientBuilder.build().chat().completions().create(chatCompletionCreateParams);
-                    rewordedText = chatCompletion.choices().get(0).message().content().orElse("");
+                    // Logging für die API-Anfrage (ohne API-Key)
+                Log.d("DictateAPI", "Rewording-Anfrage - URL: " + apiHost + ", Modell: " + rewordingModel + ", Prompt: " + prompt);
+                
+                ChatCompletionCreateParams chatCompletionCreateParams = ChatCompletionCreateParams.builder()
+                        .addUserMessage(prompt)
+                        .model(rewordingModel)
+                        .build();
+                ChatCompletion chatCompletion = clientBuilder.build().chat().completions().create(chatCompletionCreateParams);
+                rewordedText = chatCompletion.choices().get(0).message().content().orElse("");
+                
+                // Logging der Antwort (ohne API-Key)
+                Log.d("DictateAPI", "Rewording-Antwort erhalten: " + rewordedText);
 
-                    if (chatCompletion.usage().isPresent()) {
-                        usageDb.edit(rewordingModel, 0, chatCompletion.usage().get().promptTokens(), chatCompletion.usage().get().completionTokens(), rewordingProvider);
-                    }
+                if (chatCompletion.usage().isPresent()) {
+                    usageDb.edit(rewordingModel, 0, chatCompletion.usage().get().promptTokens(), chatCompletion.usage().get().completionTokens(), rewordingProvider);
+                }
                 }
 
                 InputConnection inputConnection = getCurrentInputConnection();
@@ -1072,6 +1145,7 @@ public class DictateInputMethodService extends InputMethodService {
                         }
                     } else {
                         int speed = sp.getInt("net.devemperor.dictate.output_speed", 5);
+                        // Schrittweise Textausgabe (kann in den Einstellungen aktiviert werden)
                         for (int i = 0; i < rewordedText.length(); i++) {
                             char character = rewordedText.charAt(i);
                             mainHandler.postDelayed(() -> inputConnection.commitText(String.valueOf(character), 1), (long) (i * (20L / (speed / 5f))));
@@ -1079,27 +1153,42 @@ public class DictateInputMethodService extends InputMethodService {
                     }
                 }
             } catch (RuntimeException e) {
+                // Detailliertes Logging des Fehlers
+                Log.e("DictateAPI", "Fehler bei der Rewording-Anfrage", e);
+                
                 if (!(e.getCause() instanceof InterruptedIOException)) {
                     sendLogToCrashlytics(e);
                     if (vibrationEnabled) vibrator.vibrate(VibrationEffect.createOneShot(300, VibrationEffect.DEFAULT_AMPLITUDE));
-                    mainHandler.post(() -> {
-                        resendButton.setVisibility(View.VISIBLE);
-                        String message = Objects.requireNonNull(e.getMessage()).toLowerCase();
-                        if (message.contains("api key")) {
-                            showInfo("invalid_api_key");
-                        } else if (message.contains("quota")) {
-                            showInfo("quota_exceeded");
-                        } else {
-                            showInfo("internet_error");
-                        }
-                    });
+                    // Performance-Optimierung: Prüfung auf null bevor post aufgerufen wird
+                    if (mainHandler != null) {
+                        mainHandler.post(() -> {
+                            resendButton.setVisibility(View.VISIBLE);
+                            String message = Objects.requireNonNull(e.getMessage()).toLowerCase();
+                            Log.e("DictateAPI", "Fehlermeldung: " + message);
+                            
+                            if (message.contains("api key")) {
+                                Log.e("DictateAPI", "Ungültiger API-Schlüssel erkannt");
+                                showInfo("invalid_api_key");
+                            } else if (message.contains("quota")) {
+                                Log.e("DictateAPI", "Quota überschritten");
+                                showInfo("quota_exceeded");
+                            } else {
+                                Log.e("DictateAPI", "Allgemeiner Internetfehler");
+                                showInfo("internet_error");
+                            }
+                        });
+                    }
                 } else if (e.getCause().getMessage() != null && e.getCause().getMessage().contains("timeout")) {
+                    Log.e("DictateAPI", "Timeout bei der Rewording-Anfrage", e);
                     sendLogToCrashlytics(e);
                     if (vibrationEnabled) vibrator.vibrate(VibrationEffect.createOneShot(300, VibrationEffect.DEFAULT_AMPLITUDE));
-                    mainHandler.post(() -> {
-                        resendButton.setVisibility(View.VISIBLE);
-                        showInfo("timeout");
-                    });
+                    // Performance-Optimierung: Prüfung auf null bevor post aufgerufen wird
+                    if (mainHandler != null) {
+                        mainHandler.post(() -> {
+                            resendButton.setVisibility(View.VISIBLE);
+                            showInfo("timeout");
+                        });
+                    }
                 }
             }
 
