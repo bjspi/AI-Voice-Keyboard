@@ -1,10 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!--    Material 400-->
+    <!--    Ursprüngliches blaues Farbschema für Toggle-Settings-->
     <color name="dictate_blue">#29B6F6</color>
 
     <!--    Material 600-->
     <color name="dictate_blue_dark">#1C7EAB</color>
+
+    <!--    Helles Grau für Tastatur-Buttons-->
+    <color name="dictate_keyboard_button">#FBFBFB</color>
+    <color name="dictate_keyboard_button_dark">#E0E0E0</color>
 
     <color name="dictate_white">#ffffff</color>
     <color name="dictate_black">#000000</color>
@@ -16,5 +20,5 @@
     <color name="dictate_recording_green_paused">#7CA37C</color>
 
     <color name="dictate_keyboard_background_dark">#1b1b1d</color>
-    <color name="dictate_keyboard_background_light">#f1f1f1</color>
+    <color name="dictate_keyboard_background_light">#e0e0e0</color>
 </resources>

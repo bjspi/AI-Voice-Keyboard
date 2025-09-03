@@ -10,6 +10,7 @@
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/settings_btn"
+        style="@style/KeyboardButtonStyle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_margin="16dp"
@@ -33,6 +34,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/record_btn"
+            style="@style/KeyboardButtonStyle"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:text="@string/dictate_record"
@@ -45,6 +47,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/stop_btn"
+            style="@style/KeyboardButtonStyle"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:text="@string/dictate_send"
@@ -59,6 +62,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/stop_switch_btn"
+            style="@style/KeyboardButtonStyle"
             android:layout_width="56dp"
             android:layout_height="wrap_content"
             android:foreground="@drawable/ic_baseline_subdirectory_arrow_left_24"
@@ -71,6 +75,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/resend_btn"
+            style="@style/KeyboardButtonStyle"
             android:layout_width="56dp"
             android:layout_height="wrap_content"
             android:foreground="@drawable/ic_outline_change_circle_24"
@@ -86,6 +91,7 @@
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/backspace_btn"
+        style="@style/KeyboardButtonStyle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="8dp"
@@ -100,6 +106,7 @@
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/switch_btn"
+        style="@style/KeyboardButtonStyle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="16dp"
@@ -114,6 +121,7 @@
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/trash_btn"
+        style="@style/KeyboardButtonStyle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="8dp"
@@ -129,6 +137,7 @@
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/space_btn"
+        style="@style/KeyboardButtonStyle"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="8dp"
@@ -140,6 +149,7 @@
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/pause_btn"
+        style="@style/KeyboardButtonStyle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginEnd="8dp"
@@ -155,6 +165,7 @@
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/enter_btn"
+        style="@style/KeyboardButtonStyle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="8dp"
@@ -231,7 +242,7 @@
         android:id="@+id/edit_buttons_keyboard_ll"
         android:layout_width="0dp"
         android:layout_height="36dp"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="4dp"
         android:orientation="horizontal"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -239,6 +250,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/edit_select_all_btn"
+            style="@style/KeyboardButtonStyle"
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:foreground="@drawable/ic_baseline_select_all_24"
@@ -250,6 +262,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/edit_undo_btn"
+            style="@style/KeyboardButtonStyle"
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:foreground="@drawable/ic_baseline_undo_24"
@@ -260,6 +273,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/edit_redo_btn"
+            style="@style/KeyboardButtonStyle"
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:foreground="@drawable/ic_baseline_redo_24"
@@ -270,6 +284,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/edit_cut_btn"
+            style="@style/KeyboardButtonStyle"
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:foreground="@drawable/ic_baseline_content_cut_24"
@@ -280,6 +295,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/edit_copy_btn"
+            style="@style/KeyboardButtonStyle"
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:foreground="@drawable/ic_baseline_content_copy_24"
@@ -290,6 +306,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/edit_paste_btn"
+            style="@style/KeyboardButtonStyle"
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:foreground="@drawable/ic_baseline_content_paste_24"
@@ -317,12 +334,12 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginHorizontal="12dp"
-            android:scrollbars="horizontal"
             android:scrollbarSize="1dp"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
+            android:scrollbars="horizontal"
             app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
             tools:layout_height="32dp" />
 
         <LinearLayout

@@ -98,7 +98,7 @@ public class DictateInputMethodService extends InputMethodService {
     private boolean instantPrompt = false;
     private boolean vibrationEnabled = true;
     private boolean audioFocusEnabled = true;
-    private TextView selectedCharacter = null;
+    private MaterialButton selectedCharacter = null;
     private boolean spaceButtonUserHasSwiped = false;
     private int currentInputLanguagePos;
     private String currentInputLanguageValue;
@@ -117,6 +117,7 @@ public class DictateInputMethodService extends InputMethodService {
     private SharedPreferences sp;
     private AudioManager am;
     private AudioFocusRequest audioFocusRequest;
+    //private MaterialButton selectedCharacter = null;
 
     // define views
     private ConstraintLayout dictateKeyboardView;
@@ -146,6 +147,7 @@ public class DictateInputMethodService extends InputMethodService {
     private MaterialButton editCopyButton;
     private MaterialButton editPasteButton;
     private LinearLayout overlayCharactersLl;
+    //private MaterialButton selectedCharacter = null;
 
     PromptsDatabaseHelper promptsDb;
     PromptsKeyboardAdapter promptsAdapter;
@@ -380,7 +382,7 @@ public class DictateInputMethodService extends InputMethodService {
             resendButton.setVisibility(View.GONE);
             infoCl.setVisibility(View.GONE);
             // Reset record button color to original blue
-            recordButton.setBackgroundColor(getResources().getColor(R.color.dictate_blue, getTheme()));
+            //recordButton.setBackgroundColor(getResources().getColor(R.color.dictate_blue, getTheme()));
             stopSwitchButton.setBackgroundColor(getResources().getColor(R.color.dictate_blue, getTheme()));
 
         });
@@ -477,7 +479,7 @@ public class DictateInputMethodService extends InputMethodService {
                 switch (event.getAction()) {
                     case MotionEvent.ACTION_MOVE:
                         for (int i = 0; i < overlayCharactersLl.getChildCount(); i++) {
-                            TextView charView = (TextView) overlayCharactersLl.getChildAt(i);
+                            MaterialButton charView = (MaterialButton) overlayCharactersLl.getChildAt(i);
                             if (isPointInsideView(event.getRawX(), charView)) {
                                 if (selectedCharacter != charView) {
                                     selectedCharacter = charView;
@@ -493,7 +495,7 @@ public class DictateInputMethodService extends InputMethodService {
                             if (inputConnection != null) {
                                 inputConnection.commitText(selectedCharacter.getText(), 1);
                             }
-                            selectedCharacter.setBackground(AppCompatResources.getDrawable(this, R.drawable.border_textview));
+                            highlightSelectedCharacter(selectedCharacter);
                             selectedCharacter = null;
                         }
                         overlayCharactersLl.setVisibility(View.GONE);
@@ -549,7 +551,7 @@ public class DictateInputMethodService extends InputMethodService {
 
         // initialize overlay characters
         for (int i = 0; i < 8; i++) {
-            TextView charView = (TextView) LayoutInflater.from(context).inflate(R.layout.item_overlay_characters, overlayCharactersLl, false);
+            MaterialButton charView = (MaterialButton) LayoutInflater.from(context).inflate(R.layout.item_overlay_characters, overlayCharactersLl, false);
             overlayCharactersLl.addView(charView);
         }
 
@@ -800,7 +802,7 @@ public class DictateInputMethodService extends InputMethodService {
             stopSwitchButton.setVisibility(View.GONE);
             recordButton.setVisibility(View.VISIBLE);
             // Reset record button color to original blue
-            recordButton.setBackgroundColor(getResources().getColor(R.color.dictate_blue, getTheme()));
+            //recordButton.setBackgroundColor(getResources().getColor(R.color.dictate_blue, getTheme()));
             stopSwitchButton.setBackgroundColor(getResources().getColor(R.color.dictate_blue, getTheme()));
             startWhisperApiRequest();
         }
@@ -1217,13 +1219,14 @@ public class DictateInputMethodService extends InputMethodService {
         return x > location[0] && x < location[0] + view.getWidth();
     }
 
-    private void highlightSelectedCharacter(TextView selectedView) {
+    private void highlightSelectedCharacter(MaterialButton selectedView) {
         for (int i = 0; i < overlayCharactersLl.getChildCount(); i++) {
-            TextView charView = (TextView) overlayCharactersLl.getChildAt(i);
+            MaterialButton charView = (MaterialButton) overlayCharactersLl.getChildAt(i);
             if (charView == selectedView) {
-                charView.setBackground(AppCompatResources.getDrawable(this, R.drawable.border_textview_selected));
+                charView.setStrokeColorResource(R.color.dictate_blue);
+                charView.setStrokeWidth(4);
             } else {
-                charView.setBackground(AppCompatResources.getDrawable(this, R.drawable.border_textview));
+                charView.setStrokeWidth(0);
             }
         }
     }

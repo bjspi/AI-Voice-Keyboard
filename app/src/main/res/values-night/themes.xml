@@ -16,6 +16,12 @@
 
     </style>
 
+    <!-- Stil für Tastatur-Buttons mit hellem Grau -->
+    <style name="KeyboardButtonStyle" parent="Widget.Material3.Button">
+        <item name="backgroundTint">@color/dictate_keyboard_button</item>
+        <item name="android:textColor">@color/dictate_black</item>
+    </style>
+
     <style name="roundedImageView" parent="">
         <item name="cornerFamily">rounded</item>
         <item name="cornerSize">18dp</item>
