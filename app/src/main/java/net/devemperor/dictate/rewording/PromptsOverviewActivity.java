@@ -4,6 +4,8 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.Button;
+import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
 import androidx.activity.result.ActivityResultLauncher;
@@ -17,9 +19,17 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 
 import net.devemperor.dictate.R;
 
+import java.io.BufferedReader;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.lang.reflect.Type;
 import java.util.List;
 
 public class PromptsOverviewActivity extends AppCompatActivity {
@@ -30,6 +40,8 @@ public class PromptsOverviewActivity extends AppCompatActivity {
     PromptsOverviewAdapter adapter;
 
     ActivityResultLauncher<Intent> addEditPromptLauncher;
+    ActivityResultLauncher<Intent> importFileLauncher;
+    ActivityResultLauncher<Intent> exportFileLauncher;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -71,6 +83,25 @@ public class PromptsOverviewActivity extends AppCompatActivity {
             addEditPromptLauncher.launch(intent);
         });
 
+        // Import/Export buttons
+        Button importBtn = findViewById(R.id.prompts_overview_import_btn);
+        Button exportBtn = findViewById(R.id.prompts_overview_export_btn);
+
+        importBtn.setOnClickListener(v -> {
+            Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+            intent.addCategory(Intent.CATEGORY_OPENABLE);
+            intent.setType("application/json");
+            importFileLauncher.launch(intent);
+        });
+
+        exportBtn.setOnClickListener(v -> {
+            Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+            intent.addCategory(Intent.CATEGORY_OPENABLE);
+            intent.setType("application/json");
+            intent.putExtra(Intent.EXTRA_TITLE, "dictate_prompts.json");
+            exportFileLauncher.launch(intent);
+        });
+
         addEditPromptLauncher = registerForActivityResult(
                 new ActivityResultContracts.StartActivityForResult(),
                 result -> {
@@ -94,6 +125,83 @@ public class PromptsOverviewActivity extends AppCompatActivity {
                             data.add(db.get(addedId));
                             adapter.notifyItemInserted(data.size() - 1);
                             findViewById(R.id.prompts_overview_no_prompts_tv).setVisibility(data.isEmpty() ? View.VISIBLE : View.GONE);
+                        }
+                    }
+                }
+        );
+
+        importFileLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                result -> {
+                    if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+                        Intent data = result.getData();
+                        if (data.getData() != null) {
+                            try {
+                                FileInputStream fis = (FileInputStream) getContentResolver().openInputStream(data.getData());
+                                BufferedReader reader = new BufferedReader(new InputStreamReader(fis));
+                                StringBuilder jsonContent = new StringBuilder();
+                                String line;
+                                while ((line = reader.readLine()) != null) {
+                                    jsonContent.append(line);
+                                }
+                                reader.close();
+                                fis.close();
+
+                                // Parse JSON and import prompts
+                                Gson gson = new Gson();
+                                Type listType = new TypeToken<List<PromptModel>>(){}.getType();
+                                List<PromptModel> importedPrompts = gson.fromJson(jsonContent.toString(), listType);
+
+                                // Clear existing prompts
+                                db.clearAllPrompts();
+
+                                // Add imported prompts
+                                for (int i = 0; i < importedPrompts.size(); i++) {
+                                    PromptModel prompt = importedPrompts.get(i);
+                                    prompt.setPos(i);
+                                    db.add(prompt);
+                                }
+
+                                // Refresh data
+                                this.data.clear();
+                                this.data.addAll(db.getAll());
+                                adapter.notifyDataSetChanged();
+                                findViewById(R.id.prompts_overview_no_prompts_tv).setVisibility(this.data.isEmpty() ? View.VISIBLE : View.GONE);
+
+                                Toast.makeText(this, "Prompts imported successfully", Toast.LENGTH_SHORT).show();
+                            } catch (IOException e) {
+                                Toast.makeText(this, "Error importing prompts: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                                e.printStackTrace();
+                            }
+                        }
+                    }
+                }
+        );
+
+        exportFileLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                result -> {
+                    if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+                        Intent data = result.getData();
+                        if (data.getData() != null) {
+                            try {
+                                // Get all prompts
+                                List<PromptModel> prompts = db.getAll();
+
+                                // Convert to JSON
+                                Gson gson = new Gson();
+                                String json = gson.toJson(prompts);
+
+                                // Write to file
+                                FileOutputStream fos = (FileOutputStream) getContentResolver().openOutputStream(data.getData());
+                                fos.write(json.getBytes());
+                                fos.close();
+
+                                Toast.makeText(this, "Prompts exported successfully", Toast.LENGTH_SHORT).show();
+                            } catch (IOException e) {
+                                Toast.makeText(this, "Error exporting prompts: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                                e.printStackTrace();
+                            }
                         }
                     }
                 }

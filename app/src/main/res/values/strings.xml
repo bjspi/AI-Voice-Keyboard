@@ -60,8 +60,8 @@
     <string name="dictate_lang_welsh">Welsh</string>
 
     <string name="dictate_settings_title">Dictate Settings</string>
-    <string name="dictate_microphone_permission_granted">Microphone permission granted ✅.</string>
-    <string name="dictate_microphone_permission_denied">Microphone permission denied ❌.</string>
+    <string name="dictate_microphone_permission_granted">Microphone permission granted (granted).</string>
+    <string name="dictate_microphone_permission_denied">Microphone permission denied (denied).</string>
     <string name="dictate_record">Record</string>
     <string name="dictate_send">Send (%1$s)</string>
     <string name="dictate_sending">Sending …</string>
@@ -71,28 +71,28 @@
     <string name="dictate_internet_error_msg">Couldn\'t connect to OpenAI. Please check your internet connection.</string>
     <string name="dictate_okay">Okay</string>
     <string name="dictate_cancel">Cancel</string>
-    <string name="dictate_settings_api_key_title">Change OpenAI API key 🔑</string>
-    <string name="dictate_settings_vibration_title">Haptic feedback 📳</string>
-    <string name="dictate_settings_instant_output_title">Instant output ⏱️</string>
+    <string name="dictate_settings_api_key_title">Change OpenAI API key (key)</string>
+    <string name="dictate_settings_vibration_title">Haptic feedback (vibration)</string>
+    <string name="dictate_settings_instant_output_title">Instant output (fast)</string>
     <string name="dictate_settings_instant_output_summary">Disable typing animation when the result is ready</string>
     <string name="dictate_settings_vibration_summary">Vibrate on button presses and errors</string>
     <string name="dictate_about" translatable="false">Dictate v%1$s MOD by BJOERN\nMade with ❤️ by DevEmperor\nSoli deo gloria ✝️</string>
-    <string name="dictate_settings_usage">View usage 📊</string>
+    <string name="dictate_settings_usage">View usage (stats)</string>
     <string name="dictate_yes">Yes</string>
     <string name="dictate_no">No</string>
     <string name="dictate_usage_reset_usage_title">Reset usage?</string>
     <string name="dictate_usage_reset_usage_message">Are you sure to reset Dictate usage?</string>
-    <string name="dictate_settings_feedback">Give feedback 💌</string>
+    <string name="dictate_settings_feedback">Give feedback (email)</string>
     <string name="dictate_feedback_subject" translatable="false">Dictate Feedback</string>
     <string name="dictate_feedback_body">Write your feedback here</string>
     <string name="dictate_feedback_title">Choose an email client</string>
-    <string name="dictate_onboarding_welcome">Welcome to\nDictate\n→</string>
+    <string name="dictate_onboarding_welcome">Welcome to\nDictate\n></string>
     <string name="dictate_onboarding_permissions_microphone_request">Dictate needs your permission to use the microphone. Click the button below to grant this permission.</string>
     <string name="dictate_onboarding_permissions_microphone_button">Grant microphone permission</string>
     <string name="dictate_onboarding_permissions_keyboard_request">Dictate must be activated as a keyboard in the settings. Click on the button below to enable this.\n\nYou can also activate the keyboard button on the navigation bar to switch to Dictate more quickly.</string>
     <string name="dictate_onboarding_permissions_keyboard_button">Enable Dictate keyboard</string>
-    <string name="dictate_keyboard_disabled">Dictate keyboard disabled ❌.</string>
-    <string name="dictate_keyboard_enabled">Dictate keyboard enabled ✅.</string>
+    <string name="dictate_keyboard_disabled">Dictate keyboard disabled (inactive).</string>
+    <string name="dictate_keyboard_enabled">Dictate keyboard enabled (active).</string>
     <string name="dictate_api_key_hint" translatable="false">sk-proj-kv … / gsk_TsWDxi …</string>
     <string name="dictate_onboarding_api_key_finish">Set API key and finish setup</string>
     <string name="dictate_onboarding_complete_dialog_title">Just some final information</string>
@@ -114,11 +114,14 @@
     <string name="dictate_changelog_6">v1.5\n\n- In the settings, you can now store a system prompt for Whisper to guide speech recognition in a certain direction (e.g. specify special words in advance or influence the punctuation and filler words). ✏️\n\n- After a failed transcription, you can now resend the last recording. 🔄\n\n- Holding down the delete button for longer now speeds up the deletion process. 🚀\n\n- A donate button has been added in the settings. 🤝\n\n- Some design changes and bug fixes have been made. ✨\n\n\n</string>
     <string name="dictate_settings_rewording_title">Rewording Settings</string>
     <string name="dictate_settings_rewording_enabled_title">Rewording using AI ✍️</string>
-    <string name="dictate_settings_rewording_enabled_summary">Enable rewording of recognised text with OpenAI\'s GPT models</string>
+    <string name="dictate_settings_rewording_enabled_summary">Enable rewording of recognised text with OpenAIs GPT models</string>
     <string name="dictate_settings_edit_custom_rewording_prompts">Edit rewording prompts</string>
-    <string name="dictate_prompts_overview_info">Below you can create and edit your prompts for rewording using OpenAI\'s GPT models.</string>
+    <string name="dictate_prompts_overview_info">Below you can create and edit your prompts for rewording using OpenAIs GPT models.</string>
     <string name="dictate_prompts_overview_no_prompts">You have no prompts created.\nClick the button below to add one.</string>
     <string name="dictate_delete_prompt">Delete prompt?</string>
+    <string name="dictate_import_prompts">Import prompts</string>
+    <string name="dictate_export_prompts">Export prompts</string>
+    <string name="dictate_import_export">Import/Export</string>
     <string name="dictate_delete_prompt_message">Are you sure to delete this prompt?</string>
     <string name="dictate_requires_selection">Requires text selection</string>
     <string name="dictate_save">Save</string>

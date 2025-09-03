@@ -1,11 +1,18 @@
 package net.devemperor.dictate.rewording;
 
+import androidx.annotation.Keep;
+
+@Keep
 public class PromptModel {
     int id;
     int pos;
     String name;
     String prompt;
     boolean requiresSelection;
+
+    public PromptModel() {
+        // Default constructor for Gson
+    }
 
     public PromptModel(int id, int pos, String name, String prompt, boolean requiresSelection) {
         this.id = id;

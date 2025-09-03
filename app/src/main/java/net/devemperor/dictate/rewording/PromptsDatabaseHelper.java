@@ -79,7 +79,9 @@ public class PromptsDatabaseHelper extends SQLiteOpenHelper {
         cv.put("NAME", model.getName());
         cv.put("PROMPT", model.getPrompt());
         cv.put("REQUIRES_SELECTION", model.requiresSelection());
-        return (int) db.insert("PROMPTS", null, cv);
+        long result = db.insert("PROMPTS", null, cv);
+        db.close();
+        return (int) result;
     }
 
     public void update(PromptModel model) {
@@ -151,5 +153,11 @@ public class PromptsDatabaseHelper extends SQLiteOpenHelper {
         cursor.close();
         db.close();
         return count;
+    }
+
+    public void clearAllPrompts() {
+        SQLiteDatabase db = getWritableDatabase();
+        db.delete("PROMPTS", null, null);
+        db.close();
     }
 }
