@@ -108,6 +108,9 @@ public class DictateInputMethodService extends InputMethodService {
 
     // Flag, ob IME frisch gebunden wurde
     private boolean imeJustBound = false;
+    
+    // Flag, ob die Tastatur bereits sichtbar war
+    private boolean keyboardWasVisible = false;
 
     private MediaRecorder recorder;
     private ExecutorService speechApiThread;
@@ -171,6 +174,9 @@ public class DictateInputMethodService extends InputMethodService {
         usageDb = new UsageDatabaseHelper(this);
         vibrationEnabled = sp.getBoolean("net.devemperor.dictate.vibration", true);
         currentInputLanguagePos = sp.getInt("net.devemperor.dictate.input_language_pos", 0);
+
+        // Initialisiere keyboardWasVisible auf false, da die Tastatur neu erstellt wird
+        keyboardWasVisible = false;
 
         dictateKeyboardView = (ConstraintLayout) LayoutInflater.from(context).inflate(R.layout.activity_dictate_keyboard_view, null);
         ViewCompat.setOnApplyWindowInsetsListener(dictateKeyboardView, (v, insets) -> {
@@ -632,13 +638,20 @@ public class DictateInputMethodService extends InputMethodService {
         recordButton.setText(R.string.dictate_record);
         recordButton.setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_baseline_mic_20, 0, R.drawable.ic_baseline_folder_open_20, 0);
         recordButton.setEnabled(true);
+        
+        // Setze keyboardWasVisible auf false, da die Tastatur jetzt geschlossen ist
+        keyboardWasVisible = false;
     }
 
     // method is called if the keyboard appears again
     @Override
     public void onStartInputView(EditorInfo info, boolean restarting) {
         super.onStartInputView(info, restarting);
-        imeJustBound = true;
+        
+        // Setze imeJustBound nur, wenn die Tastatur nicht bereits sichtbar war
+        if (!keyboardWasVisible) {
+            imeJustBound = true;
+        }
 
         // Reinitialize handlers if they were cleaned up
         if (mainHandler == null) mainHandler = new Handler(Looper.getMainLooper());
@@ -766,6 +779,9 @@ public class DictateInputMethodService extends InputMethodService {
                     }
                 }, 100);  // 100ms delay
             }
+            
+            // Setze keyboardWasVisible auf true, da die Tastatur jetzt sichtbar ist
+            keyboardWasVisible = true;
         }, 50);  // 50ms delay for overall initialization
     }
 
