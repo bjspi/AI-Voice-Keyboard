@@ -97,8 +97,33 @@ public class PreferencesFragment extends PreferenceFragmentCompat {
                 editText.setInputType(InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
                 editText.setSingleLine(true);
                 editText.setHint(R.string.dictate_default_overlay_characters);
-                // Setze die maximale Länge auf 14 Zeichen (kann auch Emoji enthalten)
-                editText.setFilters(new InputFilter[] {new InputFilter.LengthFilter(14)});
+                // Verwende einen benutzerdefinierten InputFilter, der Grapheme Clusters (Emojis) korrekt zählt
+                editText.setFilters(new InputFilter[] {
+                    new InputFilter() {
+                        @Override
+                        public CharSequence filter(CharSequence source, int start, int end, android.text.Spanned dest, int dstart, int dend) {
+                            // Zähle die tatsächlichen Grapheme Clusters im gesamten Text
+                            java.text.BreakIterator iterator = java.text.BreakIterator.getCharacterInstance();
+                            String newText = dest.toString().substring(0, dstart) + source.toString() + dest.toString().substring(dend);
+                            iterator.setText(newText);
+                            
+                            int clusterCount = 0;
+                            int first = iterator.first();
+                            int last = iterator.next();
+                            while (last != java.text.BreakIterator.DONE) {
+                                clusterCount++;
+                                first = last;
+                                last = iterator.next();
+                            }
+                            
+                            // Erlaube maximal 14 Grapheme Clusters
+                            if (clusterCount > 14) {
+                                return ""; // Verweigere die Eingabe
+                            }
+                            return null; // Akzeptiere die Eingabe
+                        }
+                    }
+                });
                 editText.setSelection(editText.getText().length());
             });
 
@@ -108,16 +133,27 @@ public class PreferencesFragment extends PreferenceFragmentCompat {
                     Toast.makeText(requireContext(), R.string.dictate_overlay_characters_empty, Toast.LENGTH_SHORT).show();
                     return false;
                 }
-                
-                // Entferne alle Leerzeichen aus dem Text
-                String cleanedText = text.replaceAll("\\s+", "");
-                
-                // Wenn Leerzeichen entfernt wurden, aktualisiere den Wert
-                if (!cleanedText.equals(text)) {
-                    // Wir geben den bereinigten Text zurück, der dann als neuer Wert gespeichert wird
+                // Entferne alle Leerzeichen aus dem Text\n
+                String cleanedText = text.replaceAll("\\\\s+", "");
+
+                // Stelle sicher, dass nur vollst\u00e4ndige Grapheme Clusters gespeichert werden
+                // Dies verhindert, dass unvollst\u00e4ndige Emojis gespeichert werden
+                java.text.BreakIterator iterator = java.text.BreakIterator.getCharacterInstance();
+                iterator.setText(cleanedText);
+                StringBuilder validText = new StringBuilder();
+                int start = iterator.first();
+                int end = iterator.next();
+                while (end != java.text.BreakIterator.DONE) {
+                    validText.append(cleanedText.substring(start, end));
+                    start = end;
+                    end = iterator.next();
+                }
+                String finalText = validText.toString();
+                // Wenn Leerzeichen entfernt wurden oder unvollst\u00e4ndige Emojis korrigiert wurden, aktualisiere den Wert
+                if (!finalText.equals(text)) {
+                    // Wir geben den bereinigten Text zur\u00fcck, der dann als neuer Wert gespeichert wird
                     return true;
                 }
-                
                 return true;
             });
         }
