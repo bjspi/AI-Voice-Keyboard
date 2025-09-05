@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Highlight color for alwaysUse prompt in dark mode -->
+    <color name="dictate_always_use_highlight">#FFD700</color> <!-- Gold color for highlighting, same as light mode but could be adjusted -->
+</resources>
