@@ -10,6 +10,7 @@
 - **Enhanced Prompt Buttons**: Prompt buttons are always visible and intelligently handle text selection - using either existing selection or automatically selecting all text
 - **Fixed Instant Recording**: Resolved issues with instant recording immediately ending in certain apps (e.g., Gemini)
 - **Better Style for Recording**: Added a more modern and appealing style during Recording to notice instantly when recording is active
+- **GBoard-Style Backspace-Functionality**: Added swipe-capability to backspace button for deleting multiple words at once
 - **Smart Transcription Flow**: After finishing transcription, pressing send buttons (e.g., in WhatsApp) no longer triggers instant recording again
 - **Import/Export Prompts**: Added feature to import and export user-created prompts/presets
 - **Improved Custom Characters**: Smiley support added to "input custom characters" with improved limit and styling
