@@ -33,6 +33,7 @@ import com.openai.models.audio.transcriptions.TranscriptionCreateParams;
 
 import net.devemperor.dictate.BuildConfig;
 import net.devemperor.dictate.DictateUtils;
+import net.devemperor.dictate.core.DictateInputMethodService;
 import net.devemperor.dictate.R;
 import net.devemperor.dictate.usage.UsageDatabaseHelper;
 
@@ -308,61 +309,7 @@ public class AudioFileTranscriptionActivity extends AppCompatActivity {
     }
 
     private String performTranscription(File audioFile) throws Exception {
-        int transcriptionProvider = sp.getInt("net.devemperor.dictate.transcription_provider", 0);
-        String apiHost = getResources().getStringArray(R.array.dictate_api_providers_values)[transcriptionProvider];
-        if (apiHost.equals("custom_server")) {
-            apiHost = sp.getString("net.devemperor.dictate.transcription_custom_host", getString(R.string.dictate_custom_server_host_hint));
-        }
-
-        String apiKey = sp.getString("net.devemperor.dictate.transcription_api_key", sp.getString("net.devemperor.dictate.api_key", "NO_API_KEY")).replaceAll("[^ -~]", "");
-        String proxyHost = sp.getString("net.devemperor.dictate.proxy_host", getString(R.string.dictate_settings_proxy_hint));
-
-        String transcriptionModel = "";
-        switch (transcriptionProvider) {  // for upgrading: use old transcription_model preference
-            case 0: transcriptionModel = sp.getString("net.devemperor.dictate.transcription_openai_model", sp.getString("net.devemperor.dictate.transcription_model", "gpt-4o-mini-transcribe")); break;
-            case 1: transcriptionModel = sp.getString("net.devemperor.dictate.transcription_groq_model", "whisper-large-v3-turbo"); break;
-            case 2: transcriptionModel = sp.getString("net.devemperor.dictate.transcription_custom_model", getString(R.string.dictate_custom_transcription_model_hint));
-        }
-
-        OpenAIOkHttpClient.Builder clientBuilder = OpenAIOkHttpClient.builder()
-                .apiKey(apiKey)
-                .baseUrl(apiHost)
-                .timeout(Duration.ofSeconds(120));
-
-        String stylePrompt;
-        switch (sp.getInt("net.devemperor.dictate.style_prompt_selection", 1)) {
-            case 1:
-                stylePrompt = DictateUtils.PROMPT_PUNCTUATION_CAPITALIZATION;
-                break;
-            case 2:
-                stylePrompt = sp.getString("net.devemperor.dictate.style_prompt_custom_text", "");
-                break;
-            default:
-                stylePrompt = "";
-        }
-
-        TranscriptionCreateParams.Builder transcriptionBuilder = TranscriptionCreateParams.builder()
-                .file(audioFile.toPath())
-                .model(transcriptionModel)
-                .responseFormat(AudioResponseFormat.JSON);  // gpt-4o-transcribe only supports json
-
-        if (!stylePrompt.isEmpty()) transcriptionBuilder.prompt(stylePrompt);
-        if (sp.getBoolean("net.devemperor.dictate.proxy_enabled", false)) {
-            if (DictateUtils.isValidProxy(proxyHost)) DictateUtils.applyProxy(clientBuilder, sp);
-        }
-
-        // Logging für die API-Anfrage (ohne API-Key)
-        Log.d(TAG, "Transkriptionsanfrage - URL: " + apiHost + ", Modell: " + transcriptionModel);
-
-        Transcription transcription = clientBuilder.build().audio().transcriptions().create(transcriptionBuilder.build()).asTranscription();
-        String resultText = transcription.text().strip();  // Groq sometimes adds leading whitespace
-
-        // Logging der Transkription (ohne API-Key)
-        Log.d(TAG, "Transkription erhalten: " + resultText);
-
-        usageDb.edit(transcriptionModel, DictateUtils.getAudioDuration(audioFile), 0, 0, transcriptionProvider);
-
-        return resultText;
+        return DictateInputMethodService.transcribeAudioFile(this, audioFile, usageDb);
     }
 
     private void copyTranscriptionToClipboard() {
