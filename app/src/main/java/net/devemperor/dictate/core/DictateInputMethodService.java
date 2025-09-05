@@ -1095,25 +1095,41 @@ public class DictateInputMethodService extends InputMethodService {
 
                 if (!instantPrompt) 
                 {
-                    boolean instantOutputEnabled = sp.getBoolean("net.devemperor.dictate.instant_output", false);
+                    // Prüfe, ob ein "alwaysUse" Prompt vorhanden ist
+                    PromptModel alwaysUsePrompt = null;
+                    List<PromptModel> allPrompts = promptsDb.getAll();
+                    for (PromptModel prompt : allPrompts) {
+                        if (prompt.isAlwaysUse()) {
+                            alwaysUsePrompt = prompt;
+                            break;
+                        }
+                    }
+                    
                     InputConnection inputConnection = getCurrentInputConnection();
                     if (inputConnection != null) {
-                        if (instantOutputEnabled) {
-                            inputConnection.commitText(resultText, 1);
-
-                            // Switch IME if flag is set
-                            if (shouldSwitchImeAfterTranscription) {
-                                shouldSwitchImeAfterTranscription = false;
-                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                                    switchToPreviousInputMethod();
-                                }
-                            }
+                        if (alwaysUsePrompt != null) {
+                            // Wenn ein "alwaysUse" Prompt vorhanden ist, wende ihn auf die Transkription an
+                            startGPTApiRequest(alwaysUsePrompt, resultText);
                         } else {
-                            int speed = sp.getInt("net.devemperor.dictate.output_speed", 5);
-                            // Schrittweise Textausgabe (kann in den Einstellungen aktiviert werden)
-                            for (int i = 0; i < resultText.length(); i++) {
-                                char character = resultText.charAt(i);
-                                mainHandler.postDelayed(() -> inputConnection.commitText(String.valueOf(character), 1), (long) (i * (20L / (speed / 5f))));
+                            // Kein "alwaysUse" Prompt, füge den Text direkt ein
+                            boolean instantOutputEnabled = sp.getBoolean("net.devemperor.dictate.instant_output", false);
+                            if (instantOutputEnabled) {
+                                inputConnection.commitText(resultText, 1);
+
+                                // Switch IME if flag is set
+                                if (shouldSwitchImeAfterTranscription) {
+                                    shouldSwitchImeAfterTranscription = false;
+                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                                        switchToPreviousInputMethod();
+                                    }
+                                }
+                            } else {
+                                int speed = sp.getInt("net.devemperor.dictate.output_speed", 5);
+                                // Schrittweise Textausgabe (kann in den Einstellungen aktiviert werden)
+                                for (int i = 0; i < resultText.length(); i++) {
+                                    char character = resultText.charAt(i);
+                                    mainHandler.postDelayed(() -> inputConnection.commitText(String.valueOf(character), 1), (long) (i * (20L / (speed / 5f))));
+                                }
                             }
                         }
                     }

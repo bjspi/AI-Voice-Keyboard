@@ -6,7 +6,8 @@
 
 ## Key Improvements, Added Features and Bugfixes over original Dictate
 
-- **Stop Recording and switch back**: Added a button to stop recording and return to previous Keyboard (e.g., Gboard) without needing to switch manually
+- **Auto-Usage of Rephrase Prompt**: Added option to automatically use one of the defined custom prompts after each transcription automatically.
+- **Improved Workflow: Stop Recording and switch back**: Added a button to stop recording and return to previous Keyboard (e.g., Gboard) without needing to switch manually
 - **Enhanced Prompt Buttons**: Prompt buttons are always visible and intelligently handle text selection - using either existing selection or automatically selecting all text
 - **Fixed Instant Recording**: Resolved issues with instant recording immediately ending in certain apps (e.g., Gemini)
 - **Better Style for Recording**: Added a more modern and appealing style during Recording to notice instantly when recording is active
