@@ -88,6 +88,16 @@
                 android:name="android.support.PARENT_ACTIVITY"
                 android:value=".settings.DictateSettingsActivity" />
         </activity>
-    </application>
+        
+        <activity
+            android:name=".rewording.AudioFileTranscriptionActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="audio/*" />
+            </intent-filter>
+        </activity>
+</application>
 
 </manifest>

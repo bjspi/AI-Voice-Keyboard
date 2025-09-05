@@ -1,11 +1,10 @@
 # Dictate Keyboard (Whisper AI transcription) - Enhanced Version
 
-<a href='https://play.google.com/store/apps/details?id=net.devemperor.dictate'><img alt='Get it on Google Play' width="258px" height="100px" src='https://github.com/DevEmperor/Dictate/blob/d99981575350cfde1fa91d4c449d97483eda14d0/img/google-play-badge.png?raw=true'/></a>
-
 #### Dictate is an easy-to-use keyboard for transcribing and dictating. This is a rebranded and enhanced version of the original FOSS Dictate app, featuring numerous additions, improvements, and bug fixes. The app uses [OpenAI Whisper](https://openai.com/index/whisper/) in the background, which supports extremely accurate results for [many different languages](https://platform.openai.com/docs/guides/speech-to-text/supported-languages) with punctuation and custom AI rewording using GPT-4 Omni.
 
 ## Key Improvements, Added Features and Bugfixes over original Dictate
 
+- **Transcription capability for Audiofiles**: Added Keyboard into the "Share / SendTo" menu to transcribe audio files from any app (e.g., WhatsApp voice messages) using share menu
 - **Automatic Use of Transformation-Prompts**: Added option to automatically use one of the defined custom prompts after each transcription automatically.
   - **Functionality to temporary set Automatic Prompt**: Added option to temporarily toggle one of the user-defined prompts for automatic use for the current Keyboard session (until Keyboard is closed)
 - **Improved Workflow: Stop Recording and switch back**: Added a button to stop recording and return to previous Keyboard (e.g., Gboard) without needing to switch manually
