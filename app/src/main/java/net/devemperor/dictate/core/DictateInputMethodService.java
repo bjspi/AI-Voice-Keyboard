@@ -827,6 +827,13 @@ public class DictateInputMethodService extends InputMethodService {
                                 }
                             }
                         }
+                        
+                        // If still no text is selected after trying to select all, abort the operation
+                        if (selectedText == null || selectedText.isEmpty()) {
+                            // Abort the operation - don't call startGPTApiRequest
+                            return;
+                        }
+                        
                         startGPTApiRequest(model, selectedText);  // another normal prompt clicked
                     }
                 }, position -> {
