@@ -56,6 +56,7 @@ import com.openai.models.chat.completions.ChatCompletionCreateParams;
 import net.devemperor.dictate.BuildConfig;
 import net.devemperor.dictate.DictateUtils;
 import net.devemperor.dictate.rewording.PromptModel;
+import net.devemperor.dictate.rewording.PromptEditActivity;
 import net.devemperor.dictate.rewording.PromptsDatabaseHelper;
 import net.devemperor.dictate.rewording.PromptsKeyboardAdapter;
 import net.devemperor.dictate.rewording.PromptsOverviewActivity;
@@ -858,6 +859,15 @@ public class DictateInputMethodService extends InputMethodService {
                                 promptsAdapter.setTemporaryAlwaysUsePrompt(model);
                             }
                         }
+                    }
+                }, position -> {
+                    // Double-click handler - open prompt edit activity
+                    PromptModel model = data.get(position);
+                    if (model.getId() != -1 && model.getId() != -2) {  // Nur für echte Prompts, nicht für die speziellen Buttons
+                        Intent intent = new Intent(this, PromptEditActivity.class);
+                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                        intent.putExtra("net.devemperor.dictate.prompt_edit_activity_id", model.getId());
+                        startActivity(intent);
                     }
                 });
                 promptsRv.setAdapter(promptsAdapter);

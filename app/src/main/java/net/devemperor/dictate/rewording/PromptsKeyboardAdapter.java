@@ -19,7 +19,13 @@ public class PromptsKeyboardAdapter extends RecyclerView.Adapter<PromptsKeyboard
     private final List<PromptModel> data;
     private final AdapterCallback callback;
     private final AdapterLongPressCallback longPressCallback;
+    private final AdapterDoubleClickCallback doubleClickCallback;
     private PromptModel temporaryAlwaysUsePrompt = null;
+    
+    // Variables for double-click detection
+    private static final long DOUBLE_CLICK_TIME_DELTA = 300; // milliseconds
+    private long lastClickTime = 0;
+    private int lastClickPosition = -1;
 
     public interface AdapterCallback {
         void onItemClicked(Integer position);
@@ -28,11 +34,16 @@ public class PromptsKeyboardAdapter extends RecyclerView.Adapter<PromptsKeyboard
     public interface AdapterLongPressCallback {
         void onItemLongPressed(Integer position);
     }
+    
+    public interface AdapterDoubleClickCallback {
+        void onItemDoubleClicked(Integer position);
+    }
 
-    public PromptsKeyboardAdapter(List<PromptModel> data, AdapterCallback callback, AdapterLongPressCallback longPressCallback) {
+    public PromptsKeyboardAdapter(List<PromptModel> data, AdapterCallback callback, AdapterLongPressCallback longPressCallback, AdapterDoubleClickCallback doubleClickCallback) {
         this.data = data;
         this.callback = callback;
         this.longPressCallback = longPressCallback;
+        this.doubleClickCallback = doubleClickCallback;
     }
     
     public void setTemporaryAlwaysUsePrompt(PromptModel prompt) {
@@ -82,7 +93,29 @@ public class PromptsKeyboardAdapter extends RecyclerView.Adapter<PromptsKeyboard
                 holder.promptBtn.setBackgroundColor(holder.promptBtn.getContext().getResources().getColor(R.color.dictate_always_use_highlight, holder.promptBtn.getContext().getTheme()));
             }
         }
-        holder.promptBtn.setOnClickListener(v -> callback.onItemClicked(position));
+        holder.promptBtn.setOnClickListener(v -> {
+            // Double-click detection
+            long clickTime = System.currentTimeMillis();
+            int clickPosition = holder.getAdapterPosition();
+            
+            // Check if the position is valid
+            if (clickPosition == RecyclerView.NO_POSITION) {
+                return;
+            }
+            
+            if (clickPosition == lastClickPosition && (clickTime - lastClickTime) < DOUBLE_CLICK_TIME_DELTA) {
+                // Double click detected
+                if (doubleClickCallback != null) {
+                    doubleClickCallback.onItemDoubleClicked(clickPosition);
+                }
+                lastClickTime = 0; // Reset to avoid triple-click being treated as another double-click
+            } else {
+                // Single click
+                callback.onItemClicked(clickPosition);
+                lastClickTime = clickTime;
+                lastClickPosition = clickPosition;
+            }
+        });
         holder.promptBtn.setOnLongClickListener(v -> {
             longPressCallback.onItemLongPressed(position);
             return true;
