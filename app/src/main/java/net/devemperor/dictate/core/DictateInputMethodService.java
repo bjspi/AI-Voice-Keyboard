@@ -491,6 +491,10 @@ public class DictateInputMethodService extends InputMethodService {
             if (audioFocusEnabled) am.abandonAudioFocusRequest(audioFocusRequest);
 
             isRecording = false;
+            // Setze den Recording-Status im Adapter
+            if (promptsAdapter != null) {
+                promptsAdapter.setIsRecording(false);
+            }
             isPaused = false;
             instantPrompt = false;
             recordButton.setText(getDictateButtonText());
@@ -740,6 +744,8 @@ public class DictateInputMethodService extends InputMethodService {
         temporaryAlwaysUsePrompt = null;
         if (promptsAdapter != null) {
             promptsAdapter.clearTemporaryAlwaysUsePrompt();
+            // Setze den Recording-Status im Adapter zurück
+            promptsAdapter.setIsRecording(false);
         }
         
         // Zurücksetzen der Wort-löschen Feature-Variablen
@@ -870,6 +876,8 @@ public class DictateInputMethodService extends InputMethodService {
                         startActivity(intent);
                     }
                 });
+                // Setze den Recording-Status im Adapter
+                promptsAdapter.setIsRecording(isRecording);
                 promptsRv.setAdapter(promptsAdapter);
             } else {
                 promptsCl.setVisibility(View.GONE);
@@ -1025,6 +1033,10 @@ public class DictateInputMethodService extends InputMethodService {
         trashButton.setVisibility(View.VISIBLE);
         resendButton.setVisibility(View.GONE);
         isRecording = true;
+        // Setze den Recording-Status im Adapter
+        if (promptsAdapter != null) {
+            promptsAdapter.setIsRecording(true);
+        }
         // Set stop button background to light green
         stopButton.setBackgroundColor(getResources().getColor(R.color.dictate_recording_green, getTheme()));
         stopSwitchButton.setBackgroundColor(getResources().getColor(R.color.dictate_recording_green, getTheme()));
@@ -1078,6 +1090,10 @@ public class DictateInputMethodService extends InputMethodService {
         resendButton.setVisibility(View.GONE);
         infoCl.setVisibility(View.GONE);
         isRecording = false;
+        // Setze den Recording-Status im Adapter
+        if (promptsAdapter != null) {
+            promptsAdapter.setIsRecording(false);
+        }
         isPaused = false;
 
         if (audioFocusEnabled) am.abandonAudioFocusRequest(audioFocusRequest);

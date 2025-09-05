@@ -21,6 +21,7 @@ public class PromptsKeyboardAdapter extends RecyclerView.Adapter<PromptsKeyboard
     private final AdapterLongPressCallback longPressCallback;
     private final AdapterDoubleClickCallback doubleClickCallback;
     private PromptModel temporaryAlwaysUsePrompt = null;
+    private boolean isRecording = false;
     
     // Variables for double-click detection
     private static final long DOUBLE_CLICK_TIME_DELTA = 300; // milliseconds
@@ -49,6 +50,10 @@ public class PromptsKeyboardAdapter extends RecyclerView.Adapter<PromptsKeyboard
     public void setTemporaryAlwaysUsePrompt(PromptModel prompt) {
         this.temporaryAlwaysUsePrompt = prompt;
         notifyDataSetChanged();
+    }
+    
+    public void setIsRecording(boolean isRecording) {
+        this.isRecording = isRecording;
     }
 
     @NonNull
@@ -103,17 +108,27 @@ public class PromptsKeyboardAdapter extends RecyclerView.Adapter<PromptsKeyboard
                 return;
             }
             
-            if (clickPosition == lastClickPosition && (clickTime - lastClickTime) < DOUBLE_CLICK_TIME_DELTA) {
-                // Double click detected
-                if (doubleClickCallback != null) {
-                    doubleClickCallback.onItemDoubleClicked(clickPosition);
+            // Wenn wir uns in einer Aufnahme befinden und es sich um einen echten Prompt handelt (nicht Instant-Prompt -1),
+            // dann aktiviere/deaktiviere den Prompt als temporären alwaysUse Prompt (wie beim Long Press)
+            if (isRecording && data.get(clickPosition).getId() != -1 && data.get(clickPosition).getId() != -2) {
+                // Verwende die Long Press Logik für normale Klicks während der Aufnahme
+                if (longPressCallback != null) {
+                    longPressCallback.onItemLongPressed(clickPosition);
                 }
-                lastClickTime = 0; // Reset to avoid triple-click being treated as another double-click
             } else {
-                // Single click
-                callback.onItemClicked(clickPosition);
-                lastClickTime = clickTime;
-                lastClickPosition = clickPosition;
+                // Normale Verarbeitung
+                if (clickPosition == lastClickPosition && (clickTime - lastClickTime) < DOUBLE_CLICK_TIME_DELTA) {
+                    // Double click detected
+                    if (doubleClickCallback != null) {
+                        doubleClickCallback.onItemDoubleClicked(clickPosition);
+                    }
+                    lastClickTime = 0; // Reset to avoid triple-click being treated as another double-click
+                } else {
+                    // Single click
+                    callback.onItemClicked(clickPosition);
+                    lastClickTime = clickTime;
+                    lastClickPosition = clickPosition;
+                }
             }
         });
         holder.promptBtn.setOnLongClickListener(v -> {
