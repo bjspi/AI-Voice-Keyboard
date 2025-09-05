@@ -32,22 +32,27 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/audio_file_transcription_title_tv" />
 
-    <TextView
-        android:id="@+id/audio_file_transcription_result_tv"
+    <ScrollView
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:layout_marginTop="16dp"
         android:layout_marginBottom="16dp"
-        android:background="@drawable/item_prompts_background"
-        android:gravity="top|start"
-        android:padding="12dp"
-        android:scrollbars="vertical"
-        android:text="@string/dictate_transcribing"
-        android:textSize="16sp"
         app:layout_constraintBottom_toTopOf="@+id/audio_file_transcription_buttons_ll"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/audio_file_transcription_pb" />
+        app:layout_constraintTop_toBottomOf="@+id/audio_file_transcription_pb">
+
+        <TextView
+            android:id="@+id/audio_file_transcription_result_tv"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/item_prompts_background"
+            android:gravity="top|start"
+            android:padding="12dp"
+            android:text="@string/dictate_transcribing"
+            android:textSize="16sp" />
+
+    </ScrollView>
 
     <LinearLayout
         android:id="@+id/audio_file_transcription_buttons_ll"
