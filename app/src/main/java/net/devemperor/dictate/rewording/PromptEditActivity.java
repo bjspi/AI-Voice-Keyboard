@@ -43,18 +43,56 @@ public class PromptEditActivity extends AppCompatActivity {
         EditText promptNameEt = findViewById(R.id.prompt_edit_name_et);
         EditText promptPromptEt = findViewById(R.id.prompt_edit_prompt_et);
         MaterialSwitch promptRequiresSelectionSwitch = findViewById(R.id.prompt_edit_requires_selection_switch);
+        MaterialSwitch promptAlwaysUseSwitch = findViewById(R.id.prompt_edit_always_use_switch);
         MaterialButton savePromptBtn = findViewById(R.id.prompt_edit_save_btn);
 
         db = new PromptsDatabaseHelper(this);
 
         int id = getIntent().getIntExtra("net.devemperor.dictate.prompt_edit_activity_id", -1);
+        boolean hasAlwaysUsePrompt = false;
+        PromptModel alwaysUseModel = null;
+        
+        // Check if there's already a prompt with alwaysUse flag set
+        for (PromptModel model : db.getAll()) {
+            if (model.isAlwaysUse() && model.getId() != id) {
+                hasAlwaysUsePrompt = true;
+                alwaysUseModel = model;
+                break;
+            }
+        }
+
         if (id != -1) {
             PromptModel model = db.get(id);
             promptNameEt.setText(model.getName());
             promptPromptEt.setText(model.getPrompt());
             promptRequiresSelectionSwitch.setChecked(model.requiresSelection());
+            promptAlwaysUseSwitch.setChecked(model.isAlwaysUse());
+            
+            // Disable the alwaysUse switch if another prompt already has it and this isn't that prompt
+            if (hasAlwaysUsePrompt && !model.isAlwaysUse()) {
+                promptAlwaysUseSwitch.setEnabled(false);
+            }
             savePromptBtn.setEnabled(true);
+        } else {
+            // For new prompts, disable alwaysUse if another prompt already has it
+            if (hasAlwaysUsePrompt) {
+                promptAlwaysUseSwitch.setEnabled(false);
+            }
         }
+
+        // When "Always use" is checked, also check "Requires text selection"
+        promptAlwaysUseSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (isChecked) {
+                promptRequiresSelectionSwitch.setChecked(true);
+            }
+        });
+
+        // When "Requires text selection" is unchecked, uncheck "Always use"
+        promptRequiresSelectionSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (!isChecked) {
+                promptAlwaysUseSwitch.setChecked(false);
+            }
+        });
 
         SimpleTextWatcher tw = new SimpleTextWatcher() {
             @Override
@@ -69,16 +107,29 @@ public class PromptEditActivity extends AppCompatActivity {
             String name = promptNameEt.getText().toString();
             String prompt = promptPromptEt.getText().toString();
             boolean requiresSelection = promptRequiresSelectionSwitch.isChecked();
+            boolean alwaysUse = promptAlwaysUseSwitch.isChecked();
+
+            // If "Always use" is checked, ensure only this prompt has it set
+            if (alwaysUse) {
+                // Set alwaysUse to false for all other prompts
+                for (PromptModel model : db.getAll()) {
+                    if (model.getId() != id) {
+                        model.setAlwaysUse(false);
+                        db.update(model);
+                    }
+                }
+            }
 
             Intent result = new Intent();
             if (id == -1) {
-                int addId = db.add(new PromptModel(0, db.count(), name, prompt, requiresSelection));
+                int addId = db.add(new PromptModel(0, db.count(), name, prompt, requiresSelection, alwaysUse));
                 result.putExtra("added_id", addId);
             } else {
                 PromptModel model = db.get(id);
                 model.setName(name);
                 model.setPrompt(prompt);
                 model.setRequiresSelection(requiresSelection);
+                model.setAlwaysUse(alwaysUse);
                 db.update(model);
                 result.putExtra("updated_id", id);
             }

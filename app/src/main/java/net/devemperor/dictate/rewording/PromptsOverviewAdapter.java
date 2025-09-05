@@ -22,6 +22,8 @@ public class PromptsOverviewAdapter extends RecyclerView.Adapter<PromptsOverview
     private final List<PromptModel> data;
     private final AdapterCallback callback;
     private final PromptsDatabaseHelper db;
+    private boolean hasAlwaysUsePrompt = false;
+    private int alwaysUsePromptId = -1;
 
     public interface AdapterCallback {
         void onItemClicked(Integer position);
@@ -32,6 +34,21 @@ public class PromptsOverviewAdapter extends RecyclerView.Adapter<PromptsOverview
         this.data = data;
         this.callback = callback;
         this.db = db;
+        
+        // Check if there's already a prompt with alwaysUse flag set
+        checkForAlwaysUsePrompt();
+    }
+
+    private void checkForAlwaysUsePrompt() {
+        hasAlwaysUsePrompt = false;
+        alwaysUsePromptId = -1;
+        for (PromptModel model : data) {
+            if (model.isAlwaysUse()) {
+                hasAlwaysUsePrompt = true;
+                alwaysUsePromptId = model.getId();
+                break;
+            }
+        }
     }
 
     @NonNull
@@ -42,6 +59,7 @@ public class PromptsOverviewAdapter extends RecyclerView.Adapter<PromptsOverview
     }
 
     public static class RecyclerViewHolder extends RecyclerView.ViewHolder {
+        final View container;
         final TextView itemNameTv;
         final TextView itemPromptTv;
         final MaterialButton moveUpBtn;
@@ -50,6 +68,7 @@ public class PromptsOverviewAdapter extends RecyclerView.Adapter<PromptsOverview
 
         public RecyclerViewHolder(View itemView) {
             super(itemView);
+            container = itemView.findViewById(R.id.item_prompts_overview_container);
             itemNameTv = itemView.findViewById(R.id.item_prompts_overview_name_tv);
             itemPromptTv = itemView.findViewById(R.id.item_prompts_overview_prompt_tv);
             moveUpBtn = itemView.findViewById(R.id.item_prompts_overview_move_up_btn);
@@ -69,6 +88,13 @@ public class PromptsOverviewAdapter extends RecyclerView.Adapter<PromptsOverview
         holder.itemPromptTv.setText(model.getPrompt());
         holder.itemPromptTv.setOnClickListener(v -> callback.onItemClicked(currentPosition));
 
+        // Highlight the prompt if it has the alwaysUse flag set
+        if (model.isAlwaysUse()) {
+            holder.container.setBackgroundResource(R.drawable.item_prompts_background_highlighted);
+        } else {
+            holder.container.setBackgroundResource(R.drawable.item_prompts_background);
+        }
+
         holder.moveUpBtn.setVisibility(currentPosition == 0 ? View.GONE : View.VISIBLE);
         holder.moveDownBtn.setVisibility(currentPosition == data.size() - 1 ? View.GONE : View.VISIBLE);
 
@@ -85,6 +111,14 @@ public class PromptsOverviewAdapter extends RecyclerView.Adapter<PromptsOverview
             db.update(prevModel);
             data.set(pos, prevModel);
             data.set(pos - 1, currentModel);
+
+            // Update always use prompt tracking
+            if (currentModel.isAlwaysUse()) {
+                alwaysUsePromptId = currentModel.getId();
+            }
+            if (prevModel.isAlwaysUse()) {
+                alwaysUsePromptId = prevModel.getId();
+            }
 
             notifyItemMoved(pos, pos - 1);
             notifyItemChanged(pos);
@@ -105,6 +139,14 @@ public class PromptsOverviewAdapter extends RecyclerView.Adapter<PromptsOverview
             data.set(pos, nextModel);
             data.set(pos + 1, currentModel);
 
+            // Update always use prompt tracking
+            if (currentModel.isAlwaysUse()) {
+                alwaysUsePromptId = currentModel.getId();
+            }
+            if (nextModel.isAlwaysUse()) {
+                alwaysUsePromptId = nextModel.getId();
+            }
+
             notifyItemMoved(pos, pos + 1);
             notifyItemChanged(pos);
             notifyItemChanged(pos + 1);
@@ -116,6 +158,13 @@ public class PromptsOverviewAdapter extends RecyclerView.Adapter<PromptsOverview
                 .setPositiveButton(R.string.dictate_yes, (di, i) -> {
                     int pos = holder.getAdapterPosition();
                     if (pos == RecyclerView.NO_POSITION) return;
+                    
+                    // If we're deleting the prompt with alwaysUse flag, update tracking
+                    if (model.isAlwaysUse()) {
+                        hasAlwaysUsePrompt = false;
+                        alwaysUsePromptId = -1;
+                    }
+                    
                     db.delete(model.getId());
                     data.remove(pos);
                     notifyItemRemoved(pos);
@@ -129,5 +178,19 @@ public class PromptsOverviewAdapter extends RecyclerView.Adapter<PromptsOverview
     @Override
     public int getItemCount() {
         return data.size();
+    }
+
+    // Method to update the always use prompt tracking when data changes
+    public void updateAlwaysUsePromptTracking() {
+        checkForAlwaysUsePrompt();
+    }
+
+    // Getters for always use prompt status
+    public boolean hasAlwaysUsePrompt() {
+        return hasAlwaysUsePrompt;
+    }
+
+    public int getAlwaysUsePromptId() {
+        return alwaysUsePromptId;
     }
 }

@@ -121,10 +121,14 @@ public class PromptsOverviewActivity extends AppCompatActivity {
                                     break;
                                 }
                             }
+                            // Update always use prompt tracking
+                            adapter.updateAlwaysUsePromptTracking();
                         } else if (addedId != -1) {
                             data.add(db.get(addedId));
                             adapter.notifyItemInserted(data.size() - 1);
                             findViewById(R.id.prompts_overview_no_prompts_tv).setVisibility(data.isEmpty() ? View.VISIBLE : View.GONE);
+                            // Update always use prompt tracking
+                            adapter.updateAlwaysUsePromptTracking();
                         }
                     }
                 }
@@ -167,6 +171,9 @@ public class PromptsOverviewActivity extends AppCompatActivity {
                                 this.data.addAll(db.getAll());
                                 adapter.notifyDataSetChanged();
                                 findViewById(R.id.prompts_overview_no_prompts_tv).setVisibility(this.data.isEmpty() ? View.VISIBLE : View.GONE);
+                                
+                                // Update always use prompt tracking
+                                adapter.updateAlwaysUsePromptTracking();
 
                                 Toast.makeText(this, "Prompts imported successfully", Toast.LENGTH_SHORT).show();
                             } catch (IOException e) {

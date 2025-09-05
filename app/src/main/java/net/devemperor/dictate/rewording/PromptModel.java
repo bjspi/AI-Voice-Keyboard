@@ -9,6 +9,7 @@ public class PromptModel {
     String name;
     String prompt;
     boolean requiresSelection;
+    boolean alwaysUse;
 
     public PromptModel() {
         // Default constructor for Gson
@@ -20,6 +21,16 @@ public class PromptModel {
         this.name = name;
         this.prompt = prompt;
         this.requiresSelection = requiresSelection;
+        this.alwaysUse = false;  // Default value
+    }
+
+    public PromptModel(int id, int pos, String name, String prompt, boolean requiresSelection, boolean alwaysUse) {
+        this.id = id;
+        this.pos = pos;
+        this.name = name;
+        this.prompt = prompt;
+        this.requiresSelection = requiresSelection;
+        this.alwaysUse = alwaysUse;
     }
 
     public int getId() {
@@ -60,5 +71,13 @@ public class PromptModel {
 
     public void setRequiresSelection(boolean requiresSelection) {
         this.requiresSelection = requiresSelection;
+    }
+
+    public boolean isAlwaysUse() {
+        return alwaysUse;
+    }
+
+    public void setAlwaysUse(boolean alwaysUse) {
+        this.alwaysUse = alwaysUse;
     }
 }
