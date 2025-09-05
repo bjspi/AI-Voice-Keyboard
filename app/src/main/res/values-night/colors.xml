@@ -2,4 +2,7 @@
 <resources>
     <!-- Highlight color for alwaysUse prompt in dark mode -->
     <color name="dictate_always_use_highlight">#FFD700</color> <!-- Gold color for highlighting, same as light mode but could be adjusted -->
+    
+    <!-- Highlight color for temporary alwaysUse prompt in dark mode -->
+    <color name="dictate_temporary_always_use_highlight">#90CAF9</color> <!-- Light blue color for temporary highlighting -->
 </resources>

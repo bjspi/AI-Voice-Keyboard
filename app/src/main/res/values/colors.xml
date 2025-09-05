@@ -23,5 +23,8 @@
     <color name="dictate_keyboard_background_light">#e0e0e0</color>
     
     <!-- Highlight color for alwaysUse prompt -->
-    <color name="dictate_always_use_highlight">#EFE6B6</color> <!-- Gold color for highlighting -->
+    <color name="dictate_always_use_highlight">#F1E9BE</color> <!-- Gold color for highlighting -->
+    
+    <!-- Highlight color for temporary alwaysUse prompt -->
+    <color name="dictate_temporary_always_use_highlight">#90CAF9</color> <!-- Light blue color for temporary highlighting -->
 </resources>

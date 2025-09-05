@@ -117,6 +117,9 @@ public class DictateInputMethodService extends InputMethodService {
     // Flag, ob IME frisch gebunden wurde
     private boolean imeJustBound = false;
     
+    // Variable für den temporären alwaysUse Prompt
+    private PromptModel temporaryAlwaysUsePrompt = null;
+    
     // Flag, ob die Tastatur bereits sichtbar war
     private boolean keyboardWasVisible = false;
 
@@ -732,6 +735,12 @@ public class DictateInputMethodService extends InputMethodService {
         // Setze keyboardWasVisible auf false, da die Tastatur jetzt geschlossen ist
         keyboardWasVisible = false;
         
+        // Zurücksetzen des temporären alwaysUse Prompts
+        temporaryAlwaysUsePrompt = null;
+        if (promptsAdapter != null) {
+            promptsAdapter.clearTemporaryAlwaysUsePrompt();
+        }
+        
         // Zurücksetzen der Wort-löschen Feature-Variablen
         selectedWordCount = 0;
         initialCursorPosition = 0;
@@ -819,6 +828,29 @@ public class DictateInputMethodService extends InputMethodService {
                             }
                         }
                         startGPTApiRequest(model, selectedText);  // another normal prompt clicked
+                    }
+                }, position -> {
+                    vibrate();
+                    PromptModel model = data.get(position);
+                    if (model.getId() != -1 && model.getId() != -2) {  // Nur für echte Prompts, nicht für die speziellen Buttons
+                        // Prüfe, ob dieser Prompt bereits der temporäre alwaysUse Prompt ist
+                        if (temporaryAlwaysUsePrompt != null && model.getId() == temporaryAlwaysUsePrompt.getId()) {
+                            // Wenn ja, dann entferne den temporären alwaysUse Prompt
+                            temporaryAlwaysUsePrompt = null;
+                            
+                            // Aktualisiere die Anzeige
+                            if (promptsAdapter != null) {
+                                promptsAdapter.clearTemporaryAlwaysUsePrompt();
+                            }
+                        } else {
+                            // Wenn nein, setze diesen Prompt als temporären alwaysUse Prompt
+                            temporaryAlwaysUsePrompt = model;
+                            
+                            // Aktualisiere die Anzeige
+                            if (promptsAdapter != null) {
+                                promptsAdapter.setTemporaryAlwaysUsePrompt(model);
+                            }
+                        }
                     }
                 });
                 promptsRv.setAdapter(promptsAdapter);
@@ -1096,7 +1128,7 @@ public class DictateInputMethodService extends InputMethodService {
                 if (!instantPrompt) 
                 {
                     // Prüfe, ob ein "alwaysUse" Prompt vorhanden ist
-                    PromptModel alwaysUsePrompt = promptsDb.getAlwaysUsePrompt();
+                    PromptModel alwaysUsePrompt = temporaryAlwaysUsePrompt != null ? temporaryAlwaysUsePrompt : promptsDb.getAlwaysUsePrompt();
                     
                     InputConnection inputConnection = getCurrentInputConnection();
                     if (inputConnection != null) {
