@@ -104,6 +104,12 @@ public class DictateInputMethodService extends InputMethodService {
     private boolean spaceButtonUserHasSwiped = false;
     private int currentInputLanguagePos;
     private String currentInputLanguageValue;
+    
+    // Variable für das Wort-löschen Feature
+    private int selectedWordCount = 0; // Anzahl der selektierten Wörter
+    private int initialCursorPosition = 0; // Initiale Cursorposition beim Drücken
+    private float startXPosition = 0; // Startposition des Swipes
+    private static final int SWIPE_THRESHOLD_PER_WORD = 80; // Pixel pro Wort
 
     // Flag to switch IME after transcription
     private boolean shouldSwitchImeAfterTranscription = false;
@@ -179,6 +185,11 @@ public class DictateInputMethodService extends InputMethodService {
 
         // Initialisiere keyboardWasVisible auf false, da die Tastatur neu erstellt wird
         keyboardWasVisible = false;
+        
+        // Zurücksetzen der Wort-löschen Feature-Variablen
+        selectedWordCount = 0;
+        initialCursorPosition = 0;
+        startXPosition = 0;
 
         dictateKeyboardView = (ConstraintLayout) LayoutInflater.from(context).inflate(R.layout.activity_dictate_keyboard_view, null);
         ViewCompat.setOnApplyWindowInsetsListener(dictateKeyboardView, (v, insets) -> {
@@ -359,11 +370,56 @@ public class DictateInputMethodService extends InputMethodService {
         });
 
         backspaceButton.setOnTouchListener((v, event) -> {
-            if (event.getAction() == MotionEvent.ACTION_UP) {
-                isDeleting = false;
-                deleteHandler.removeCallbacks(deleteRunnable);
+            InputConnection inputConnection = getCurrentInputConnection();
+            if (inputConnection != null) {
+                switch (event.getAction()) {
+                    case MotionEvent.ACTION_DOWN:
+                        // Speichere die initiale Cursorposition
+                        ExtractedText extractedText = inputConnection.getExtractedText(new ExtractedTextRequest(), 0);
+                        if (extractedText != null) {
+                            initialCursorPosition = extractedText.startOffset + extractedText.selectionStart;
+                        } else {
+                            // Fallback: Hole die aktuelle Cursorposition
+                            CharSequence textBeforeCursor = inputConnection.getTextBeforeCursor(0, 0);
+                            initialCursorPosition = textBeforeCursor != null ? textBeforeCursor.length() : 0;
+                        }
+                        selectedWordCount = 0;
+                        startXPosition = event.getX();
+                        backspaceButton.setTag(startXPosition);
+                        break;
+
+                    case MotionEvent.ACTION_MOVE:
+                        float startX = (float) backspaceButton.getTag();
+                        float currentX = event.getX();
+                        float deltaX = currentX - startX;
+
+                        // Berechne die Anzahl der zu selektierenden Wörter basierend auf der Wischdistanz
+                        if (deltaX < -30) { // Mindestens 30px nach links
+                            int wordsToSelect = Math.abs((int) (deltaX / SWIPE_THRESHOLD_PER_WORD)) + 1; // +1, damit auch bei kurzen Swipes ein Wort selektiert wird
+                            
+                            // Nur aktualisieren, wenn sich die Anzahl geändert hat
+                            if (wordsToSelect != selectedWordCount) {
+                                selectedWordCount = wordsToSelect;
+                                selectWords(inputConnection, selectedWordCount);
+                            }
+                        } else if (selectedWordCount > 0) {
+                            // Zurücksetzen der Selektion, wenn nicht mehr nach links gewischt wird
+                            selectedWordCount = 0;
+                            inputConnection.setSelection(initialCursorPosition, initialCursorPosition);
+                        }
+                        break;
+
+                    case MotionEvent.ACTION_UP:
+                        // Lösche den selektierten Text beim Loslassen
+                        if (selectedWordCount > 0) {
+                            inputConnection.commitText("", 1);
+                            selectedWordCount = 0;
+                            return true; // Verhindere die normale onClick-Aktion
+                        }
+                        break;
+                }
             }
-            return false;
+            return false; // Erlaube die normale onClick-Aktion für normales Tippen
         });
 
         switchButton.setOnClickListener(v -> {
@@ -675,6 +731,11 @@ public class DictateInputMethodService extends InputMethodService {
         
         // Setze keyboardWasVisible auf false, da die Tastatur jetzt geschlossen ist
         keyboardWasVisible = false;
+        
+        // Zurücksetzen der Wort-löschen Feature-Variablen
+        selectedWordCount = 0;
+        initialCursorPosition = 0;
+        startXPosition = 0;
     }
 
     // method is called if the keyboard appears again
@@ -691,6 +752,11 @@ public class DictateInputMethodService extends InputMethodService {
         if (mainHandler == null) mainHandler = new Handler(Looper.getMainLooper());
         if (deleteHandler == null) deleteHandler = new Handler();
         if (recordTimeHandler == null) recordTimeHandler = new Handler(Looper.getMainLooper());
+
+        // Zurücksetzen der Wort-löschen Feature-Variablen
+        selectedWordCount = 0;
+        initialCursorPosition = 0;
+        startXPosition = 0;
 
         // Add a small delay before checking for instant recording to ensure proper initialization
         mainHandler.postDelayed(() -> {
@@ -1430,6 +1496,73 @@ public class DictateInputMethodService extends InputMethodService {
                 }
             }
         }
+    }
+
+    private void selectWords(InputConnection inputConnection, int wordCount) {
+        // Hole den aktuellen Text vor der Cursor-Position
+        ExtractedText extractedText = inputConnection.getExtractedText(new ExtractedTextRequest(), 0);
+        if (extractedText != null && extractedText.text != null && extractedText.text.length() > 0) {
+            String text = extractedText.text.toString();
+            int cursorPosition = initialCursorPosition;
+            
+            // Sicherstellen, dass die Cursorposition nicht außerhalb des Textes liegt
+            if (cursorPosition > text.length()) {
+                cursorPosition = text.length();
+            }
+            
+            // Berechne die Startposition für die Selektion
+            int selectionStart = cursorPosition;
+            for (int i = 0; i < wordCount; i++) {
+                int wordStart = findWordStart(text, selectionStart);
+                if (wordStart >= 0 && wordStart < selectionStart) {
+                    selectionStart = wordStart;
+                } else {
+                    break; // Kein weiteres Wort gefunden
+                }
+            }
+            
+            // Selektiere den Text vom Anfang des ersten Wortes bis zur ursprünglichen Cursorposition
+            inputConnection.setSelection(selectionStart, cursorPosition);
+        } else {
+            // Fallback: Verwende getTextBeforeCursor und getTextAfterCursor
+            CharSequence textBeforeCursor = inputConnection.getTextBeforeCursor(1000, 0);
+            if (textBeforeCursor != null) {
+                String text = textBeforeCursor.toString();
+                int cursorPosition = text.length();
+                
+                // Berechne die Startposition für die Selektion
+                int selectionStart = cursorPosition;
+                for (int i = 0; i < wordCount; i++) {
+                    int wordStart = findWordStart(text, selectionStart);
+                    if (wordStart >= 0 && wordStart < selectionStart) {
+                        selectionStart = wordStart;
+                    } else {
+                        break; // Kein weiteres Wort gefunden
+                    }
+                }
+                
+                // Selektiere den Text vom Anfang des ersten Wortes bis zur ursprünglichen Cursorposition
+                inputConnection.setSelection(selectionStart, cursorPosition);
+            }
+        }
+    }
+    
+    private int findWordStart(String text, int position) {
+        // Finde den Anfang des letzten Wortes rückwärts von der Position
+        if (position <= 0) return -1;
+        
+        // Überspringe Leerzeichen und Sonderzeichen am Ende
+        int i = position - 1;
+        while (i >= 0 && !Character.isLetterOrDigit(text.charAt(i))) {
+            i--;
+        }
+        
+        // Finde den Anfang des Wortes (Buchstaben und Zahlen)
+        while (i >= 0 && Character.isLetterOrDigit(text.charAt(i))) {
+            i--;
+        }
+        
+        return i + 1;
     }
 
     // checks whether a point is inside a view based on its horizontal position
