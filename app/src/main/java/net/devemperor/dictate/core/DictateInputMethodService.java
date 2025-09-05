@@ -1096,14 +1096,7 @@ public class DictateInputMethodService extends InputMethodService {
                 if (!instantPrompt) 
                 {
                     // Prüfe, ob ein "alwaysUse" Prompt vorhanden ist
-                    PromptModel alwaysUsePrompt = null;
-                    List<PromptModel> allPrompts = promptsDb.getAll();
-                    for (PromptModel prompt : allPrompts) {
-                        if (prompt.isAlwaysUse()) {
-                            alwaysUsePrompt = prompt;
-                            break;
-                        }
-                    }
+                    PromptModel alwaysUsePrompt = promptsDb.getAlwaysUsePrompt();
                     
                     InputConnection inputConnection = getCurrentInputConnection();
                     if (inputConnection != null) {

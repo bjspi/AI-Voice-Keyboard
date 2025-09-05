@@ -196,6 +196,22 @@ public class PromptsDatabaseHelper extends SQLiteOpenHelper {
         return count;
     }
 
+    public PromptModel getAlwaysUsePrompt() {
+        SQLiteDatabase db = getReadableDatabase();
+        Cursor cursor = db.rawQuery("SELECT * FROM PROMPTS WHERE ALWAYS_USE = 1 LIMIT 1", null);
+        PromptModel model = null;
+        if (cursor.moveToFirst()) {
+            model = new PromptModel(cursor.getInt(0), cursor.getInt(1), cursor.getString(2), cursor.getString(3), cursor.getInt(4) == 1, cursor.getInt(5) == 1);
+        }
+        cursor.close();
+        db.close();
+        return model;
+    }
+
+    public boolean hasAlwaysUsePrompt() {
+        return getAlwaysUsePrompt() != null;
+    }
+
     public void clearAllPrompts() {
         SQLiteDatabase db = getWritableDatabase();
         db.delete("PROMPTS", null, null);

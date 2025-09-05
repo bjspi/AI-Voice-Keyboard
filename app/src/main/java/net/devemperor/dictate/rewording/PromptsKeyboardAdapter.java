@@ -50,12 +50,21 @@ public class PromptsKeyboardAdapter extends RecyclerView.Adapter<PromptsKeyboard
         if (model.getId() == -1) {
             holder.promptBtn.setText("");
             holder.promptBtn.setForeground(AppCompatResources.getDrawable(holder.promptBtn.getContext(), R.drawable.ic_baseline_auto_awesome_18));
+            holder.promptBtn.setBackgroundColor(holder.promptBtn.getContext().getResources().getColor(R.color.dictate_keyboard_button, holder.promptBtn.getContext().getTheme()));
         } else if (model.getId() == -2) {
             holder.promptBtn.setText("");
             holder.promptBtn.setForeground(AppCompatResources.getDrawable(holder.promptBtn.getContext(), R.drawable.ic_baseline_add_24));
+            holder.promptBtn.setBackgroundColor(holder.promptBtn.getContext().getResources().getColor(R.color.dictate_keyboard_button, holder.promptBtn.getContext().getTheme()));
         } else {
             holder.promptBtn.setText(model.getName());
             holder.promptBtn.setForeground(null);
+            
+            // Highlight the prompt if it has the alwaysUse flag set
+            if (model.isAlwaysUse()) {
+                holder.promptBtn.setBackgroundColor(holder.promptBtn.getContext().getResources().getColor(R.color.dictate_always_use_highlight, holder.promptBtn.getContext().getTheme()));
+            } else {
+                holder.promptBtn.setBackgroundColor(holder.promptBtn.getContext().getResources().getColor(R.color.dictate_keyboard_button, holder.promptBtn.getContext().getTheme()));
+            }
         }
         holder.promptBtn.setOnClickListener(v -> callback.onItemClicked(position));
     }

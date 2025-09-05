@@ -21,4 +21,7 @@
 
     <color name="dictate_keyboard_background_dark">#1b1b1d</color>
     <color name="dictate_keyboard_background_light">#e0e0e0</color>
+    
+    <!-- Highlight color for alwaysUse prompt -->
+    <color name="dictate_always_use_highlight">#EFE6B6</color> <!-- Gold color for highlighting -->
 </resources>

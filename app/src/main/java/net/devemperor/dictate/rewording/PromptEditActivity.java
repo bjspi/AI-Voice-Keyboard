@@ -49,16 +49,13 @@ public class PromptEditActivity extends AppCompatActivity {
         db = new PromptsDatabaseHelper(this);
 
         int id = getIntent().getIntExtra("net.devemperor.dictate.prompt_edit_activity_id", -1);
-        boolean hasAlwaysUsePrompt = false;
-        PromptModel alwaysUseModel = null;
+        boolean hasAlwaysUsePrompt = db.hasAlwaysUsePrompt();
+        PromptModel alwaysUseModel = db.getAlwaysUsePrompt();
         
-        // Check if there's already a prompt with alwaysUse flag set
-        for (PromptModel model : db.getAll()) {
-            if (model.isAlwaysUse() && model.getId() != id) {
-                hasAlwaysUsePrompt = true;
-                alwaysUseModel = model;
-                break;
-            }
+        // If the alwaysUse prompt is the same as the one being edited, we don't count it as "having" an alwaysUse prompt
+        if (alwaysUseModel != null && alwaysUseModel.getId() == id) {
+            hasAlwaysUsePrompt = false;
+            alwaysUseModel = null;
         }
 
         if (id != -1) {
