@@ -327,8 +327,8 @@ public class DictateInputMethodService extends InputMethodService {
 
         stopSwitchButton.setOnClickListener(v -> {
             vibrate();
-            stopRecording();
             shouldSwitchImeAfterTranscription = true;
+            stopRecording();
         });
 
         resendButton.setOnClickListener(v -> {
@@ -1084,9 +1084,10 @@ public class DictateInputMethodService extends InputMethodService {
             stopButton.setVisibility(View.GONE);
             stopSwitchButton.setVisibility(View.GONE);
             recordButton.setVisibility(View.VISIBLE);
+
             // Reset record button color to original blue
             //recordButton.setBackgroundColor(getResources().getColor(R.color.dictate_blue, getTheme()));
-            stopSwitchButton.setBackgroundColor(getResources().getColor(R.color.dictate_blue, getTheme()));
+            //stopSwitchButton.setBackgroundColor(getResources().getColor(R.color.dictate_blue, getTheme()));
             startWhisperApiRequest();
         } else {
             Log.w("DictateInputMethodService", "stopRecording called but recorder is null");
@@ -1111,7 +1112,8 @@ public class DictateInputMethodService extends InputMethodService {
         }
         isPaused = false;
 
-        if (audioFocusEnabled) am.abandonAudioFocusRequest(audioFocusRequest);
+        if (audioFocusEnabled)
+            am.abandonAudioFocusRequest(audioFocusRequest);
 
         String stylePrompt;
         switch (sp.getInt("net.devemperor.dictate.style_prompt_selection", 1)) {
@@ -1290,28 +1292,30 @@ public class DictateInputMethodService extends InputMethodService {
                 String rewordedText;
                 if (prompt.startsWith("[") && prompt.endsWith("]")) {
                     rewordedText = prompt.substring(1, prompt.length() - 1);
-                } else {
+                }
+                else
+                {
                     prompt += "\n\n" + DictateUtils.PROMPT_REWORDING_BE_PRECISE;
                     if (selectedText != null) {
                         prompt += "\n\n" + selectedText;
                     }
 
                     // Logging für die API-Anfrage (ohne API-Key)
-                Log.d("DictateAPI", "Rewording-Anfrage - URL: " + apiHost + ", Modell: " + rewordingModel + ", Prompt: " + prompt);
+                    Log.d("DictateAPI", "Rewording-Anfrage - URL: " + apiHost + ", Modell: " + rewordingModel + ", Prompt: " + prompt);
 
-                ChatCompletionCreateParams chatCompletionCreateParams = ChatCompletionCreateParams.builder()
-                        .addUserMessage(prompt)
-                        .model(rewordingModel)
-                        .build();
-                ChatCompletion chatCompletion = clientBuilder.build().chat().completions().create(chatCompletionCreateParams);
-                rewordedText = chatCompletion.choices().get(0).message().content().orElse("");
+                    ChatCompletionCreateParams chatCompletionCreateParams = ChatCompletionCreateParams.builder()
+                            .addUserMessage(prompt)
+                            .model(rewordingModel)
+                            .build();
+                    ChatCompletion chatCompletion = clientBuilder.build().chat().completions().create(chatCompletionCreateParams);
+                    rewordedText = chatCompletion.choices().get(0).message().content().orElse("");
 
-                // Logging der Antwort (ohne API-Key)
-                Log.d("DictateAPI", "Rewording-Antwort erhalten: " + rewordedText);
+                    // Logging der Antwort (ohne API-Key)
+                    Log.d("DictateAPI", "Rewording-Antwort erhalten: " + rewordedText);
 
-                if (chatCompletion.usage().isPresent()) {
-                    usageDb.edit(rewordingModel, 0, chatCompletion.usage().get().promptTokens(), chatCompletion.usage().get().completionTokens(), rewordingProvider);
-                }
+                    if (chatCompletion.usage().isPresent()) {
+                        usageDb.edit(rewordingModel, 0, chatCompletion.usage().get().promptTokens(), chatCompletion.usage().get().completionTokens(), rewordingProvider);
+                    }
                 }
 
                 InputConnection inputConnection = getCurrentInputConnection();
@@ -1320,7 +1324,7 @@ public class DictateInputMethodService extends InputMethodService {
                     if (instantOutputEnabled) {
                         inputConnection.commitText(rewordedText, 1);
 
-                        if(model.getId() == -1 && shouldSwitchImeAfterTranscription) {
+                        if(shouldSwitchImeAfterTranscription) {
                             // Switch IME if flag is set
                             shouldSwitchImeAfterTranscription = false;
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
