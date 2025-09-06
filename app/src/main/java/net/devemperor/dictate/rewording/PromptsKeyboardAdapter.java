@@ -3,6 +3,8 @@ package net.devemperor.dictate.rewording;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.os.Handler;
+import android.os.Looper;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.content.res.AppCompatResources;
@@ -24,9 +26,11 @@ public class PromptsKeyboardAdapter extends RecyclerView.Adapter<PromptsKeyboard
     private boolean isRecording = false;
     
     // Variables for double-click detection
-    private static final long DOUBLE_CLICK_TIME_DELTA = 300; // milliseconds
+    private static final long DOUBLE_CLICK_TIME_DELTA = 250; // milliseconds
     private long lastClickTime = 0;
     private int lastClickPosition = -1;
+    private final Handler clickHandler = new Handler(Looper.getMainLooper());
+    private Runnable pendingSingleClickRunnable = null;
 
     public interface AdapterCallback {
         void onItemClicked(Integer position);
@@ -99,7 +103,6 @@ public class PromptsKeyboardAdapter extends RecyclerView.Adapter<PromptsKeyboard
             }
         }
         holder.promptBtn.setOnClickListener(v -> {
-            // Double-click detection
             long clickTime = System.currentTimeMillis();
             int clickPosition = holder.getAdapterPosition();
             
@@ -113,25 +116,61 @@ public class PromptsKeyboardAdapter extends RecyclerView.Adapter<PromptsKeyboard
             if (isRecording && data.get(clickPosition).getId() != -1 && data.get(clickPosition).getId() != -2) {
                 // Verwende die Long Press Logik für normale Klicks während der Aufnahme
                 if (longPressCallback != null) {
+                    // Bei Long-Press-Äquivalent: vorherige pending Single-Click abbrechen
+                    if (pendingSingleClickRunnable != null) {
+                        clickHandler.removeCallbacks(pendingSingleClickRunnable);
+                        pendingSingleClickRunnable = null;
+                        lastClickTime = 0;
+                        lastClickPosition = -1;
+                    }
                     longPressCallback.onItemLongPressed(clickPosition);
                 }
-            } else {
-                // Normale Verarbeitung
-                if (clickPosition == lastClickPosition && (clickTime - lastClickTime) < DOUBLE_CLICK_TIME_DELTA) {
-                    // Double click detected
-                    if (doubleClickCallback != null) {
-                        doubleClickCallback.onItemDoubleClicked(clickPosition);
-                    }
-                    lastClickTime = 0; // Reset to avoid triple-click being treated as another double-click
-                } else {
-                    // Single click
-                    callback.onItemClicked(clickPosition);
-                    lastClickTime = clickTime;
-                    lastClickPosition = clickPosition;
+                return;
+            }
+
+            // Double-click detection with delayed single-click execution
+            if (lastClickPosition == clickPosition && (clickTime - lastClickTime) < DOUBLE_CLICK_TIME_DELTA) {
+                // Double click detected -> cancel pending single click and fire double-click immediately
+                if (pendingSingleClickRunnable != null) {
+                    clickHandler.removeCallbacks(pendingSingleClickRunnable);
+                    pendingSingleClickRunnable = null;
                 }
+                if (doubleClickCallback != null) {
+                    doubleClickCallback.onItemDoubleClicked(clickPosition);
+                }
+                // reset
+                lastClickTime = 0;
+                lastClickPosition = -1;
+            } else {
+                // schedule single click after the delta to wait for a possible double click
+                lastClickTime = clickTime;
+                lastClickPosition = clickPosition;
+                final int pos = clickPosition;
+                // cancel previous pending if any (safe-guard)
+                if (pendingSingleClickRunnable != null) {
+                    clickHandler.removeCallbacks(pendingSingleClickRunnable);
+                    pendingSingleClickRunnable = null;
+                }
+                pendingSingleClickRunnable = () -> {
+                    // Execute single click if not canceled by a subsequent double-click/long-press
+                    if (callback != null) {
+                        callback.onItemClicked(pos);
+                    }
+                    pendingSingleClickRunnable = null;
+                    lastClickTime = 0;
+                    lastClickPosition = -1;
+                };
+                clickHandler.postDelayed(pendingSingleClickRunnable, DOUBLE_CLICK_TIME_DELTA);
             }
         });
         holder.promptBtn.setOnLongClickListener(v -> {
+            // Wenn Long-Press passiert, verhindere, dass danach noch ein Single-Click ausgeführt wird
+            if (pendingSingleClickRunnable != null) {
+                clickHandler.removeCallbacks(pendingSingleClickRunnable);
+                pendingSingleClickRunnable = null;
+                lastClickTime = 0;
+                lastClickPosition = -1;
+            }
             longPressCallback.onItemLongPressed(position);
             return true;
         });
