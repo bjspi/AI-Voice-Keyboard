@@ -5,6 +5,8 @@
 This fork is based on the original Dictate repository. This fork includes a lot of major improvements, new features, and bug fixes.
 The following sections provide an overview of the key changes and additions made in this enhanced version.
 
+The APK can be downloaded as Debug Build (unsigned) [from here](https://github.com/bjspi/AI-Voice-Keyboard/blob/main/app/build/outputs/apk/debug/app-debug.apk). 
+
 ## Key Improvements, Added Features and Bugfixes over original Dictate
 
 - **Transcription capability for Audiofiles**: Added Keyboard into the "Share / SendTo" menu to transcribe audio files from any app (e.g., WhatsApp voice messages) using share menu
