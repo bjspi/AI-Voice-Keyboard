@@ -12,6 +12,7 @@ The APK can be downloaded as Debug Build (unsigned) [from here](https://github.c
 - **Transcription capability for Audiofiles**: Added Keyboard into the "Share / SendTo" menu to transcribe audio files from any app (e.g., WhatsApp voice messages) using share menu
 - **Automatic Use of Rewording-Prompts**: Added option to automatically use one of the defined custom prompts after each transcription automatically.
   - **Functionality to temporary set Automatic Prompt**: Added option to temporarily toggle one of the user-defined prompts for automatic use for the current Keyboard session (until Keyboard is closed)
+- **Live Prompting based on Text**: Added functionality to use the "Live Prompt" (Instant Prompt) based on the current text in the input field. If you click the LivePrompt Button as normal, it will start a recording and use the transcript as input for the prompt. If you make a text-selection and click the button, it will use the selected text in the input field as input for the prompt without starting a recording.
 - **Added support for Bluetooth Headsets** : Added support for Bluetooth headsets (e.g., AirPods) as input source (Thanks to [@cuylerstuwe](https://github.com/cuylerstuwe/Dictate/tree/for-pr))
 - **Improved Workflow: Stop Recording and switch back**: Added a button to stop recording and return to previous Keyboard (e.g., Gboard) without needing to switch manually
 - **Enhanced Prompt Buttons**: Prompt buttons are always visible and intelligently handle text selection - using either existing selection or automatically selecting all text

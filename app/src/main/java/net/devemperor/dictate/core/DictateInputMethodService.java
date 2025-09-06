@@ -802,13 +802,24 @@ public class DictateInputMethodService extends InputMethodService {
                     PromptModel model = data.get(position);
 
                     if (model.getId() == -1) {  // instant prompt clicked
-                        instantPrompt = true;
-                        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-                            openSettingsActivity();
-                        } else if (!isRecording) {
-                            startRecording();
+                        InputConnection ic = getCurrentInputConnection();
+                        CharSequence selectedTextForPrompt = (ic != null) ? ic.getSelectedText(0) : null;
+
+                        if (selectedTextForPrompt != null && selectedTextForPrompt.length() > 0) {
+                            // Text is selected, use it as the transcript and send to GPT
+                            // This skips the recording process
+                            String transcript = selectedTextForPrompt.toString();
+                            startGPTApiRequest(new PromptModel(-1, Integer.MIN_VALUE, "Live Prompt", transcript, false), null);
                         } else {
-                            stopRecording();
+                            // No text selected, start/stop recording as before
+                            instantPrompt = true;
+                            if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                                openSettingsActivity();
+                            } else if (!isRecording) {
+                                startRecording();
+                            } else {
+                                stopRecording();
+                            }
                         }
                     } else if (model.getId() == -2) {  // add prompt clicked
                         Intent intent = new Intent(this, PromptsOverviewActivity.class);
