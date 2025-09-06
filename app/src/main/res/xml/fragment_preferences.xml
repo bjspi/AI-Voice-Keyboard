@@ -119,6 +119,13 @@
             app:iconSpaceReserved="false"/>
 
         <androidx.preference.SwitchPreference
+            android:key="net.devemperor.dictate.use_prompt_as_system_prompt"
+            android:title="@string/dictate_settings_use_prompt_as_system_prompt_title"
+            android:summary="@string/dictate_settings_use_prompt_as_system_prompt_summary"
+            android:defaultValue="true"
+            app:iconSpaceReserved="false"/>
+
+        <androidx.preference.SwitchPreference
             android:key="net.devemperor.dictate.proxy_enabled"
             android:title="@string/dictate_settings_proxy_enabled_title"
             android:defaultValue="false"

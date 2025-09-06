@@ -244,4 +244,6 @@
     <string name="dictate_transcription_error">Transcription error: %1$s</string>
     <string name="dictate_copied_to_clipboard">Copied to clipboard</string>
     <string name="dictate_transcription">Transcription</string>
+    <string name="dictate_settings_use_prompt_as_system_prompt_title">Use as system prompt</string>
+    <string name="dictate_settings_use_prompt_as_system_prompt_summary">Use rewording prompt presets as a system prompt instead of concatenating them into the user message</string>
 </resources>

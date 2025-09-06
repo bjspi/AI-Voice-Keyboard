@@ -1273,18 +1273,31 @@ public class DictateInputMethodService extends InputMethodService {
                 }
                 else
                 {
-                    prompt += "\n\n" + DictateUtils.PROMPT_REWORDING_BE_PRECISE;
-                    if (selectedText != null) {
-                        prompt += "\n\n" + selectedText;
-                    }
+                    ChatCompletionCreateParams.Builder chatCompletionBuilder = ChatCompletionCreateParams.builder().model(rewordingModel);
 
                     // Logging für die API-Anfrage (ohne API-Key)
-                    Log.d("DictateAPI", "Rewording-Anfrage - URL: " + apiHost + ", Modell: " + rewordingModel + ", Prompt: " + prompt);
+                    Log.d("DictateAPI", "Rewording-Request - URL: " + apiHost + ", Modell: " + rewordingModel);
 
-                    ChatCompletionCreateParams chatCompletionCreateParams = ChatCompletionCreateParams.builder()
-                            .addUserMessage(prompt)
-                            .model(rewordingModel)
-                            .build();
+                    if (sp.getBoolean("net.devemperor.dictate.use_prompt_as_system_prompt", false)) {
+                        chatCompletionBuilder.addSystemMessage(prompt);
+                        Log.d("DictateAPI", "System-Prompt configured / added: " + prompt);
+                        if (selectedText != null) {
+                            Log.d("DictateAPI", "User-Message added: " + selectedText.substring(0, Math.min(selectedText.length(), 100)) + (selectedText.length() > 100 ? "..." : ""));
+                            chatCompletionBuilder.addUserMessage(selectedText);
+                        }
+                    } else {
+
+                        prompt += "\n\n";
+                        if (selectedText != null) {
+                            prompt += "\n\n" + selectedText;
+                        }
+                        Log.d("DictateAPI", "Everything as User-Message configured / added: " + prompt.substring(0, Math.min(prompt.length(), 100)) + (prompt.length() > 100 ? "..." : ""));
+                        chatCompletionBuilder.addUserMessage(prompt);
+                    }
+
+
+
+                    ChatCompletionCreateParams chatCompletionCreateParams = chatCompletionBuilder.build();
                     ChatCompletion chatCompletion = clientBuilder.build().chat().completions().create(chatCompletionCreateParams);
                     rewordedText = chatCompletion.choices().get(0).message().content().orElse("");
 
@@ -1300,7 +1313,7 @@ public class DictateInputMethodService extends InputMethodService {
 
             } catch (RuntimeException e) {
                 // Detailliertes Logging des Fehlers
-                Log.e("DictateAPI", "Fehler bei der Rewording-Anfrage", e);
+                Log.e("DictateAPI", "Error during Rewording Request", e);
 
                 if (!(e.getCause() instanceof InterruptedIOException)) {
                     sendLogToCrashlytics(e);
@@ -1310,7 +1323,7 @@ public class DictateInputMethodService extends InputMethodService {
                         mainHandler.post(() -> {
                             resendButton.setVisibility(View.VISIBLE);
                             String message = Objects.requireNonNull(e.getMessage()).toLowerCase();
-                            Log.e("DictateAPI", "Fehlermeldung: " + message);
+                            Log.e("DictateAPI", "Error: " + message);
 
                             if (message.contains("api key")) {
                                 Log.e("DictateAPI", "Ungültiger API-Schlüssel erkannt");
@@ -1738,13 +1751,13 @@ public class DictateInputMethodService extends InputMethodService {
         }
 
         // Logging für die API-Anfrage (ohne API-Key)
-        Log.d("DictateAPI", "Transkriptionsanfrage - URL: " + apiHost + ", Modell: " + transcriptionModel);
+        Log.d("DictateAPI", "Transcription-API Request - URL: " + apiHost + ", Modell: " + transcriptionModel + ", Sprache: " + (language != null ? language : "detect") + ", Prompt: " + (stylePrompt != null && !stylePrompt.isEmpty() ? stylePrompt : "none"));
 
         Transcription transcription = clientBuilder.build().audio().transcriptions().create(transcriptionBuilder.build()).asTranscription();
         String resultText = transcription.text().strip();  // Groq sometimes adds leading whitespace
 
         // Logging der Transkription (ohne API-Key)
-        Log.d("DictateAPI", "Transkription erhalten: " + resultText);
+        Log.d("DictateAPI", "Received Transcript: " + resultText);
 
         usageDb.edit(transcriptionModel, DictateUtils.getAudioDuration(audioFile), 0, 0, transcriptionProvider);
 
@@ -1786,22 +1799,29 @@ public class DictateInputMethodService extends InputMethodService {
         }
     };
 
-    private boolean isBluetoothScoAvailable() {
+    private boolean isBluetoothScoAvailable()
+    {
         AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
-        return audioManager.isBluetoothScoAvailableOffCall();
+        return audioManager != null && audioManager.isBluetoothScoAvailableOffCall();
     }
 
-    private void startBluetoothSco() {
+    private void startBluetoothSco()
+    {
         AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
-        audioManager.startBluetoothSco();
-        audioManager.setBluetoothScoOn(true);
+        if (audioManager != null) {
+            audioManager.startBluetoothSco();
+            audioManager.setBluetoothScoOn(true);
+        }
         isBluetoothScoStarted = true;
     }
 
-    private void stopBluetoothSco() {
+    private void stopBluetoothSco()
+    {
         AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
-        audioManager.stopBluetoothSco();
-        audioManager.setBluetoothScoOn(false);
+        if (audioManager != null) {
+            audioManager.stopBluetoothSco();
+            audioManager.setBluetoothScoOn(false);
+        }
         isBluetoothScoStarted = false;
     }
 
