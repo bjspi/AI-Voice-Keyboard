@@ -1,6 +1,9 @@
-# Dictate Keyboard (Whisper AI transcription) - Enhanced Version
+# Improved Dictate Keyboard (Whisper AI transcription)
 
 #### Dictate is an easy-to-use keyboard for transcribing and dictating. This is a rebranded and enhanced version of the original FOSS Dictate app, featuring numerous additions, improvements, and bug fixes. The app uses [OpenAI Whisper](https://openai.com/index/whisper/) in the background, which supports extremely accurate results for [many different languages](https://platform.openai.com/docs/guides/speech-to-text/supported-languages) with punctuation and custom AI rewording using GPT-4 Omni.
+
+This fork is based on the original Dictate repository. This fork includes a lot of major improvements, new features, and bug fixes.
+The following sections provide an overview of the key changes and additions made in this enhanced version.
 
 ## Key Improvements, Added Features and Bugfixes over original Dictate
 
