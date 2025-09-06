@@ -646,7 +646,7 @@ public class DictateInputMethodService extends InputMethodService {
             if (inputConnection != null) {
                 ExtractedText extractedText = inputConnection.getExtractedText(new ExtractedTextRequest(), 0);
 
-                if (inputConnection.getSelectedText(0) == null && extractedText.text.length() > 0) {
+                if (getUsersTextSelection(false) == null && extractedText != null && extractedText.text.length() > 0) {
                     inputConnection.performContextMenuAction(android.R.id.selectAll);
                     editSelectAllButton.setForeground(AppCompatResources.getDrawable(context, R.drawable.ic_baseline_deselect_24));
                 } else {
@@ -787,11 +787,7 @@ public class DictateInputMethodService extends InputMethodService {
                 List<PromptModel> data;
                 InputConnection inputConnection = getCurrentInputConnection();
                 // Improve text selection detection
-                boolean noTextSelected = true;
-                if (inputConnection != null) {
-                    CharSequence selectedText = inputConnection.getSelectedText(0);
-                    noTextSelected = selectedText == null || selectedText.length() == 0;
-                }
+                boolean noTextSelected = getUsersTextSelection(false) == null;
 
                 // No text selected, show all instant prompts and set select all icon
                 data = promptsDb.getAll(true);
@@ -802,14 +798,12 @@ public class DictateInputMethodService extends InputMethodService {
                     PromptModel model = data.get(position);
 
                     if (model.getId() == -1) {  // instant prompt clicked
-                        InputConnection ic = getCurrentInputConnection();
-                        CharSequence selectedTextForPrompt = (ic != null) ? ic.getSelectedText(0) : null;
+                        String selectedTextForPrompt = getUsersTextSelection(true);
 
-                        if (selectedTextForPrompt != null && selectedTextForPrompt.length() > 0) {
+                        if (selectedTextForPrompt != null) {
                             // Text is selected, use it as the transcript and send to GPT
                             // This skips the recording process
-                            String transcript = selectedTextForPrompt.toString();
-                            startGPTApiRequest(new PromptModel(-1, Integer.MIN_VALUE, "Live Prompt", transcript, false), null);
+                            startGPTApiRequest(new PromptModel(-1, Integer.MIN_VALUE, "", selectedTextForPrompt, false), null);
                         } else {
                             // No text selected, start/stop recording as before
                             instantPrompt = true;
@@ -827,26 +821,24 @@ public class DictateInputMethodService extends InputMethodService {
                         startActivity(intent);
                     } else {
                         // Check text selection at the time of button click
-                        InputConnection inputConnection2 = getCurrentInputConnection();
-                        String selectedText = null;
-                        boolean noTextSelected2 = true;
-                        if (inputConnection2 != null) {
-                            CharSequence selected = inputConnection2.getSelectedText(0);
-                            if (selected != null && selected.length() > 0) {
-                                selectedText = selected.toString();
-                                noTextSelected2 = false;
-                            }
-                        }
+                        String selectedText = getUsersTextSelection(true);
+                        boolean noTextSelected2 = selectedText == null;
 
                         // Only select all text if no text is currently selected
                         if(noTextSelected2) {
+                            InputConnection inputConnection2 = getCurrentInputConnection();
                             if (inputConnection2 != null) {
                                 inputConnection2.performContextMenuAction(android.R.id.selectAll);
-                                // Get the newly selected text
-                                CharSequence newlySelected = inputConnection2.getSelectedText(0);
-                                if (newlySelected != null && newlySelected.length() > 0) {
-                                    selectedText = newlySelected.toString();
+
+                                // Small delay to ensure text is selected before retrieving it
+                                try {
+                                    Thread.sleep(50);
+                                } catch (InterruptedException e) {
+                                    e.printStackTrace();
                                 }
+
+                                // Get the newly selected text
+                                selectedText = getUsersTextSelection(true);
                             }
                         }
 
@@ -1165,39 +1157,14 @@ public class DictateInputMethodService extends InputMethodService {
                             startGPTApiRequest(alwaysUsePrompt, resultText);
                         } else {
                             // Kein "alwaysUse" Prompt, füge den Text direkt ein
-                            boolean instantOutputEnabled = sp.getBoolean("net.devemperor.dictate.instant_output", false);
-                            if (instantOutputEnabled) {
-                                inputConnection.commitText(resultText, 1);
-
-                                // Switch IME if flag is set
-                                if (shouldSwitchImeAfterTranscription) {
-                                    shouldSwitchImeAfterTranscription = false;
-                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                                        switchToPreviousInputMethod();
-                                    }
-                                }
-                            } else {
-                                int speed = sp.getInt("net.devemperor.dictate.output_speed", 5);
-                                // Schrittweise Textausgabe (kann in den Einstellungen aktiviert werden)
-                                for (int i = 0; i < resultText.length(); i++) {
-                                    char character = resultText.charAt(i);
-                                    mainHandler.postDelayed(() -> inputConnection.commitText(String.valueOf(character), 1), (long) (i * (20L / (speed / 5f))));
-                                }
-                            }
+                            outputText(resultText, shouldSwitchImeAfterTranscription);
                         }
                     }
                 } else {
                     // continue with ChatGPT API request
                     instantPrompt = false;
                     // Get selected text for instant prompt
-                    String selectedText = null;
-                    InputConnection inputConnection = getCurrentInputConnection();
-                    if (inputConnection != null) {
-                        CharSequence selected = inputConnection.getSelectedText(0);
-                        if (selected != null && selected.length() > 0) {
-                            selectedText = selected.toString();
-                        }
-                    }
+                    String selectedText = getUsersTextSelection(true);
                     startGPTApiRequest(new PromptModel(-1, Integer.MIN_VALUE, "", resultText, false), selectedText);
                 }
 
@@ -1329,28 +1296,8 @@ public class DictateInputMethodService extends InputMethodService {
                     }
                 }
 
-                InputConnection inputConnection = getCurrentInputConnection();
-                boolean instantOutputEnabled = sp.getBoolean("net.devemperor.dictate.instant_output", false);
-                if (inputConnection != null) {
-                    if (instantOutputEnabled) {
-                        inputConnection.commitText(rewordedText, 1);
+                outputText(rewordedText, shouldSwitchImeAfterTranscription);
 
-                        if(shouldSwitchImeAfterTranscription) {
-                            // Switch IME if flag is set
-                            shouldSwitchImeAfterTranscription = false;
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                                switchToPreviousInputMethod();
-                            }
-                        }
-                    } else {
-                        int speed = sp.getInt("net.devemperor.dictate.output_speed", 5);
-                        // Schrittweise Textausgabe (kann in den Einstellungen aktiviert werden)
-                        for (int i = 0; i < rewordedText.length(); i++) {
-                            char character = rewordedText.charAt(i);
-                            mainHandler.postDelayed(() -> inputConnection.commitText(String.valueOf(character), 1), (long) (i * (20L / (speed / 5f))));
-                        }
-                    }
-                }
             } catch (RuntimeException e) {
                 // Detailliertes Logging des Fehlers
                 Log.e("DictateAPI", "Fehler bei der Rewording-Anfrage", e);
@@ -1423,6 +1370,44 @@ public class DictateInputMethodService extends InputMethodService {
         e.printStackTrace(new PrintWriter(sw));
         Log.e("DictateInputMethodService", sw.toString());
         Log.e("DictateInputMethodService", "Recorded crashlytics report");
+    }
+
+    private void outputText(String text, boolean switchIme) {
+        InputConnection inputConnection = getCurrentInputConnection();
+        if (inputConnection == null) return;
+
+        boolean instantOutputEnabled = sp.getBoolean("net.devemperor.dictate.instant_output", false);
+        if (instantOutputEnabled) {
+            inputConnection.commitText(text, 1);
+            if (switchIme) {
+                shouldSwitchImeAfterTranscription = false;
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    switchToPreviousInputMethod();
+                }
+            }
+        } else {
+            int speed = sp.getInt("net.devemperor.dictate.output_speed", 5);
+            for (int i = 0; i < text.length(); i++) {
+                char character = text.charAt(i);
+                mainHandler.postDelayed(() -> inputConnection.commitText(String.valueOf(character), 1), (long) (i * (20L / (speed / 5f))));
+            }
+        }
+    }
+
+    private String getUsersTextSelection(boolean stripWhitespaces) {
+        InputConnection ic = getCurrentInputConnection();
+        if (ic == null) {
+            return null;
+        }
+        CharSequence selectedText = ic.getSelectedText(0);
+        if (selectedText == null || selectedText.length() == 0) {
+            return null;
+        }
+        String text = selectedText.toString();
+        if (stripWhitespaces) {
+            return text.trim();
+        }
+        return text;
     }
 
     private void showInfo(String type) {
@@ -1536,7 +1521,7 @@ public class DictateInputMethodService extends InputMethodService {
     private void deleteOneCharacter() {
         InputConnection inputConnection = getCurrentInputConnection();
         if (inputConnection != null) {
-            CharSequence selectedText = inputConnection.getSelectedText(0);
+            String selectedText = getUsersTextSelection(false);
 
             if (selectedText != null) {
                 inputConnection.commitText("", 1);
