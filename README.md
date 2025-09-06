@@ -5,8 +5,9 @@
 ## Key Improvements, Added Features and Bugfixes over original Dictate
 
 - **Transcription capability for Audiofiles**: Added Keyboard into the "Share / SendTo" menu to transcribe audio files from any app (e.g., WhatsApp voice messages) using share menu
-- **Automatic Use of Transformation-Prompts**: Added option to automatically use one of the defined custom prompts after each transcription automatically.
+- **Automatic Use of Rewording-Prompts**: Added option to automatically use one of the defined custom prompts after each transcription automatically.
   - **Functionality to temporary set Automatic Prompt**: Added option to temporarily toggle one of the user-defined prompts for automatic use for the current Keyboard session (until Keyboard is closed)
+- **Added support for Bluetooth Headsets** : Added support for Bluetooth headsets (e.g., AirPods) as input source (Thanks to [@cuylerstuwe](https://github.com/cuylerstuwe/Dictate/tree/for-pr))
 - **Improved Workflow: Stop Recording and switch back**: Added a button to stop recording and return to previous Keyboard (e.g., Gboard) without needing to switch manually
 - **Enhanced Prompt Buttons**: Prompt buttons are always visible and intelligently handle text selection - using either existing selection or automatically selecting all text
   - **Pressing prompt buttons during Active Recording**: Pressing prompt buttons during active recording just toggles this prompt to use after Recording Stop instead of immediately applying it to existing text
