@@ -1437,7 +1437,11 @@ public class DictateInputMethodService extends InputMethodService {
     }
 
     private File getLastAudioFile() {
-        return new File(getCacheDir(), sp.getString("net.devemperor.dictate.last_file_name", "audio.m4a"));
+        return getLastAudioFile(this, sp);
+    }
+
+    public static File getLastAudioFile(Context context, SharedPreferences sp) {
+        return new File(context.getCacheDir(), sp.getString("net.devemperor.dictate.last_file_name", "audio.m4a"));
     }
 
     private File setLastAudioFile(String fileName) {

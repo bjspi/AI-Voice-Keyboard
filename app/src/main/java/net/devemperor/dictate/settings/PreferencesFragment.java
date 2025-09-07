@@ -22,6 +22,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import net.devemperor.dictate.BuildConfig;
 import net.devemperor.dictate.DictateUtils;
 import net.devemperor.dictate.R;
+import net.devemperor.dictate.core.DictateInputMethodService;
 import net.devemperor.dictate.rewording.PromptsOverviewActivity;
 import net.devemperor.dictate.usage.UsageActivity;
 import net.devemperor.dictate.usage.UsageDatabaseHelper;
@@ -51,8 +52,7 @@ public class PreferencesFragment extends PreferenceFragmentCompat {
         // Play/Pause für letzte Aufnahme
         playLastRecordingPref = findPreference("net.devemperor.dictate.play_last_recording");
         if (playLastRecordingPref != null) {
-            lastRecordingFile = new File(requireContext().getCacheDir(),
-                    sp.getString("net.devemperor.dictate.last_file_name", "audio.m4a"));
+            lastRecordingFile = DictateInputMethodService.getLastAudioFile(requireContext(), sp);
             boolean exists = lastRecordingFile.exists();
             playLastRecordingPref.setVisible(exists);
             if (exists) {
