@@ -26,7 +26,6 @@ import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
-import android.provider.Settings;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.ExtractedText;
 import android.view.inputmethod.ExtractedTextRequest;
@@ -36,7 +35,6 @@ import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.appcompat.content.res.AppCompatResources;
 import androidx.constraintlayout.widget.ConstraintLayout;
@@ -93,6 +91,7 @@ public class DictateInputMethodService extends InputMethodService {
     private Runnable deleteRunnable;
     private Runnable recordTimeRunnable;
 
+    private Runnable deleteTimeoutRunnable; // Watchdog, falls ACTION_UP verloren geht
     // define variables and objects
     private long elapsedTime;
     private boolean isDeleting = false;
@@ -137,18 +136,14 @@ public class DictateInputMethodService extends InputMethodService {
     //private MaterialButton selectedCharacter = null;
 
     // define views
-    private ConstraintLayout dictateKeyboardView;
-    private MaterialButton settingsButton;
     private MaterialButton recordButton;
     private MaterialButton stopButton;
     private MaterialButton stopSwitchButton;
     private MaterialButton resendButton;
     private MaterialButton backspaceButton;
-    private MaterialButton switchButton;
     private MaterialButton trashButton;
     private MaterialButton spaceButton;
     private MaterialButton pauseButton;
-    private MaterialButton enterButton;
     private ConstraintLayout infoCl;
     private TextView infoTv;
     private Button infoYesButton;
@@ -158,12 +153,6 @@ public class DictateInputMethodService extends InputMethodService {
     private TextView runningPromptTv;
     private ProgressBar runningPromptPb;
     private MaterialButton editSelectAllButton;
-    private MaterialButton editUndoButton;
-    private MaterialButton editRedoButton;
-    private MaterialButton editCutButton;
-    private MaterialButton editCopyButton;
-    private MaterialButton editPasteButton;
-    private MaterialButton editCapitalizationButton;
     private LinearLayout overlayCharactersLl;
     //private MaterialButton selectedCharacter = null;
 
@@ -203,7 +192,7 @@ public class DictateInputMethodService extends InputMethodService {
         initialCursorPosition = 0;
         startXPosition = 0;
 
-        dictateKeyboardView = (ConstraintLayout) LayoutInflater.from(context).inflate(R.layout.activity_dictate_keyboard_view, null);
+        ConstraintLayout dictateKeyboardView = (ConstraintLayout) LayoutInflater.from(context).inflate(R.layout.activity_dictate_keyboard_view, null);
         ViewCompat.setOnApplyWindowInsetsListener(dictateKeyboardView, (v, insets) -> {
             v.setPadding(0, 0, 0, insets.getInsets(WindowInsetsCompat.Type.systemBars()).bottom);
             return insets;  // fix for overlapping with navigation bar on Android 15+
@@ -214,17 +203,17 @@ public class DictateInputMethodService extends InputMethodService {
             dictateKeyboardView.setBackgroundColor(getResources().getColor(R.color.dictate_keyboard_background_dark, getTheme()));
         }
 
-        settingsButton = dictateKeyboardView.findViewById(R.id.settings_btn);
+        MaterialButton settingsButton = dictateKeyboardView.findViewById(R.id.settings_btn);
         recordButton = dictateKeyboardView.findViewById(R.id.record_btn);
         stopButton = dictateKeyboardView.findViewById(R.id.stop_btn);
         stopSwitchButton = dictateKeyboardView.findViewById(R.id.stop_switch_btn);
         resendButton = dictateKeyboardView.findViewById(R.id.resend_btn);
         backspaceButton = dictateKeyboardView.findViewById(R.id.backspace_btn);
-        switchButton = dictateKeyboardView.findViewById(R.id.switch_btn);
+        MaterialButton switchButton = dictateKeyboardView.findViewById(R.id.switch_btn);
         trashButton = dictateKeyboardView.findViewById(R.id.trash_btn);
         spaceButton = dictateKeyboardView.findViewById(R.id.space_btn);
         pauseButton = dictateKeyboardView.findViewById(R.id.pause_btn);
-        enterButton = dictateKeyboardView.findViewById(R.id.enter_btn);
+        MaterialButton enterButton = dictateKeyboardView.findViewById(R.id.enter_btn);
 
         infoCl = dictateKeyboardView.findViewById(R.id.info_cl);
         infoTv = dictateKeyboardView.findViewById(R.id.info_tv);
@@ -237,12 +226,12 @@ public class DictateInputMethodService extends InputMethodService {
         runningPromptTv = dictateKeyboardView.findViewById(R.id.prompts_keyboard_running_prompt_tv);
 
         editSelectAllButton = dictateKeyboardView.findViewById(R.id.edit_select_all_btn);
-        editUndoButton = dictateKeyboardView.findViewById(R.id.edit_undo_btn);
-        editRedoButton = dictateKeyboardView.findViewById(R.id.edit_redo_btn);
-        editCutButton = dictateKeyboardView.findViewById(R.id.edit_cut_btn);
-        editCopyButton = dictateKeyboardView.findViewById(R.id.edit_copy_btn);
-        editPasteButton = dictateKeyboardView.findViewById(R.id.edit_paste_btn);
-        editCapitalizationButton = dictateKeyboardView.findViewById(R.id.edit_capitalization_btn);
+        MaterialButton editUndoButton = dictateKeyboardView.findViewById(R.id.edit_undo_btn);
+        MaterialButton editRedoButton = dictateKeyboardView.findViewById(R.id.edit_redo_btn);
+        MaterialButton editCutButton = dictateKeyboardView.findViewById(R.id.edit_cut_btn);
+        MaterialButton editCopyButton = dictateKeyboardView.findViewById(R.id.edit_copy_btn);
+        MaterialButton editPasteButton = dictateKeyboardView.findViewById(R.id.edit_paste_btn);
+        MaterialButton editCapitalizationButton = dictateKeyboardView.findViewById(R.id.edit_capitalization_btn);
 
         overlayCharactersLl = dictateKeyboardView.findViewById(R.id.overlay_characters_ll);
 
@@ -325,7 +314,7 @@ public class DictateInputMethodService extends InputMethodService {
             return true;
         });
 
-        stopButton.setOnClickListener(v -> {
+         stopButton.setOnClickListener(v -> {
             vibrate();
             stopRecording();
         });
@@ -339,47 +328,14 @@ public class DictateInputMethodService extends InputMethodService {
         resendButton.setOnClickListener(v -> {
             vibrate();
             // if user clicked on resendButton without error before, audioFile is default audio
-            if (audioFile == null) audioFile = new File(getCacheDir(), sp.getString("net.devemperor.dictate.last_file_name", "audio.m4a"));
+            if (audioFile == null)
+                audioFile = getLastAudioFile();
             startWhisperApiRequest();
         });
 
         backspaceButton.setOnClickListener(v -> {
             vibrate();
             deleteOneCharacter();
-        });
-
-        backspaceButton.setOnLongClickListener(v -> {
-            isDeleting = true;
-            startDeleteTime = System.currentTimeMillis();
-            currentDeleteDelay = 50;
-            deleteRunnable = new Runnable() {
-                @Override
-                public void run() {
-                    if (isDeleting) {
-                        deleteOneCharacter();
-                        long diff = System.currentTimeMillis() - startDeleteTime;
-                        if (diff > 1500 && currentDeleteDelay == 50) {
-                            vibrate();
-                            currentDeleteDelay = 25;
-                        } else if (diff > 3000 && currentDeleteDelay == 25) {
-                            vibrate();
-                            currentDeleteDelay = 10;
-                        } else if (diff > 5000 && currentDeleteDelay == 10) {
-                            vibrate();
-                            currentDeleteDelay = 5;
-                        }
-                        // Performance-Optimierung: Prüfung auf null bevor postDelayed aufgerufen wird
-                        if (deleteHandler != null) {
-                            deleteHandler.postDelayed(this, currentDeleteDelay);
-                        }
-                    }
-                }
-            };
-            // Performance-Optimierung: Prüfung auf null bevor post aufgerufen wird
-            if (deleteHandler != null && deleteRunnable != null) {
-                deleteHandler.post(deleteRunnable);
-            }
-            return true;
         });
 
         backspaceButton.setOnTouchListener((v, event) -> {
@@ -855,9 +811,7 @@ public class DictateInputMethodService extends InputMethodService {
 
                 // collect all prompts from database
                 List<PromptModel> data;
-                InputConnection inputConnection = getCurrentInputConnection();
                 // Improve text selection detection
-                boolean noTextSelected = getUsersTextSelection(false) == null;
 
                 // No text selected, show all instant prompts and set select all icon
                 data = promptsDb.getAll(true);
@@ -966,7 +920,7 @@ public class DictateInputMethodService extends InputMethodService {
             }
 
             // enable resend button if previous audio file still exists in cache
-            if (new File(getCacheDir(), sp.getString("net.devemperor.dictate.last_file_name", "audio.m4a")).exists()
+            if (getLastAudioFile().exists()
                     && sp.getBoolean("net.devemperor.dictate.resend_button", false)) {
                 resendButton.setVisibility(View.VISIBLE);
             } else {
@@ -1004,7 +958,6 @@ public class DictateInputMethodService extends InputMethodService {
             audioFocusEnabled = sp.getBoolean("net.devemperor.dictate.audio_focus", true);
 
             // show infos for updates, ratings or donations
-            long totalAudioTime = usageDb.getTotalAudioTime();
             if (sp.getInt("net.devemperor.dictate.last_version_code", 0) < BuildConfig.VERSION_CODE) {
                 showInfo("update");
             } /*else if (totalAudioTime > 180 && totalAudioTime <= 600 && !sp.getBoolean("net.devemperor.dictate.flag_has_rated_in_playstore", false)) {
@@ -1015,8 +968,8 @@ public class DictateInputMethodService extends InputMethodService {
 
             // start audio file transcription if user selected an audio file
             if (!sp.getString("net.devemperor.dictate.transcription_audio_file", "").isEmpty()) {
-                audioFile = new File(getCacheDir(), sp.getString("net.devemperor.dictate.transcription_audio_file", ""));
-                sp.edit().putString("net.devemperor.dictate.last_file_name", audioFile.getName()).apply();
+                String fileName = sp.getString("net.devemperor.dictate.transcription_audio_file", "");
+                audioFile = setLastAudioFile(fileName);
 
                 sp.edit().remove("net.devemperor.dictate.transcription_audio_file").apply();
                 startWhisperApiRequest();
@@ -1028,7 +981,7 @@ public class DictateInputMethodService extends InputMethodService {
                         imeJustBound = false;
                         recordButton.performClick();
                     }
-                }, 100);  // 100ms delay
+                }, 50);  // 50ms delay
             }
 
             // Setze keyboardWasVisible auf true, da die Tastatur jetzt sichtbar ist
@@ -1076,8 +1029,7 @@ public class DictateInputMethodService extends InputMethodService {
             return;
         }
 
-        audioFile = new File(getCacheDir(), "audio.m4a");
-        sp.edit().putString("net.devemperor.dictate.last_file_name", audioFile.getName()).apply();
+        audioFile = setLastAudioFile("audio.m4a");
 
         boolean useBluetoothMic = sp.getBoolean("net.devemperor.dictate.use_bluetooth_mic", true);
         boolean bluetoothAvailable = isBluetoothScoAvailable();
@@ -1243,7 +1195,7 @@ public class DictateInputMethodService extends InputMethodService {
                     startGPTApiRequest(new PromptModel(-1, Integer.MIN_VALUE, "", resultText, false), selectedText);
                 }
 
-                if (new File(getCacheDir(), sp.getString("net.devemperor.dictate.last_file_name", "audio.m4a")).exists()
+                if (getLastAudioFile().exists()
                         && sp.getBoolean("net.devemperor.dictate.resend_button", false)) {
                     mainHandler.post(() -> resendButton.setVisibility(View.VISIBLE));
                 }
@@ -1496,6 +1448,16 @@ public class DictateInputMethodService extends InputMethodService {
             return text.trim();
         }
         return text;
+    }
+
+    private File getLastAudioFile() {
+        return new File(getCacheDir(), sp.getString("net.devemperor.dictate.last_file_name", "audio.m4a"));
+    }
+
+    private File setLastAudioFile(String fileName) {
+        File file = new File(getCacheDir(), fileName);
+        sp.edit().putString("net.devemperor.dictate.last_file_name", file.getName()).apply();
+        return file;
     }
 
     private void showInfo(String type) {
@@ -1790,7 +1752,7 @@ public class DictateInputMethodService extends InputMethodService {
      * @return The transcribed text
      * @throws Exception If transcription fails
      */
-    public static String transcribeAudioFile(Context context, File audioFile, UsageDatabaseHelper usageDb, String language, String stylePrompt) throws Exception {
+    public static String transcribeAudioFile(Context context, File audioFile, UsageDatabaseHelper usageDb, String language, String stylePrompt) {
         SharedPreferences sp = context.getSharedPreferences("net.devemperor.dictate", Context.MODE_PRIVATE);
 
         int transcriptionProvider = sp.getInt("net.devemperor.dictate.transcription_provider", 0);
@@ -1901,3 +1863,4 @@ public class DictateInputMethodService extends InputMethodService {
     }
 
 }
+
