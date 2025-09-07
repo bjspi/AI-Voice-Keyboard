@@ -20,6 +20,7 @@ The APK can be downloaded as Debug Build (unsigned) [from here](https://github.c
   - **Pressing prompt buttons during Active Recording**: Pressing prompt buttons during an active recording just toggles this prompt to use after Recording Stop instead of immediately applying it to existing text
 - **Fixed Instant Recording**: Resolved issues with instant recording immediately ending in certain apps (e.g., Gemini)
 - **GBoard-Style Backspace-Functionality**: Added swipe-capability to backspace button for deleting multiple words at once
+- **GBoard like Shift-Functionality**: Pressing the button will toggle between lower, camel and upper case for the selected text or word at cursor position
 - **Import/Export Prompts**: Added feature to import and export user-created prompts/presets
 - **Double click on Prompt Button**: Added feature to double-click prompt buttons in the Keyboard UI to edit them directly
 - **Improved Custom Characters with Emoji Support**: Smiley support added to "input custom characters" with improved limit and styling
