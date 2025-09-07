@@ -88,15 +88,8 @@ public class DictateInputMethodService extends InputMethodService {
     private Handler mainHandler;
     private Handler deleteHandler;
     private Handler recordTimeHandler;
-    private Runnable deleteRunnable;
     private Runnable recordTimeRunnable;
-
-    private Runnable deleteTimeoutRunnable; // Watchdog, falls ACTION_UP verloren geht
-    // define variables and objects
     private long elapsedTime;
-    private boolean isDeleting = false;
-    private long startDeleteTime = 0;
-    private int currentDeleteDelay = 50;
     private boolean isRecording = false;
     private boolean isPaused = false;
     private boolean instantPrompt = false;
@@ -736,9 +729,6 @@ public class DictateInputMethodService extends InputMethodService {
         if (rewordingApiThread != null) rewordingApiThread.shutdownNow();
 
         // Clean up handlers and runnables
-        if (deleteHandler != null && deleteRunnable != null) {
-            deleteHandler.removeCallbacks(deleteRunnable);
-        }
         if (recordTimeHandler != null && recordTimeRunnable != null) {
             recordTimeHandler.removeCallbacks(recordTimeRunnable);
         }
@@ -1051,13 +1041,7 @@ public class DictateInputMethodService extends InputMethodService {
         try {
             recorder.prepare();
             recorder.start();
-        } catch (IOException e) {
-            sendLogToCrashlytics(e);
-            // Show error to user
-            if (vibrationEnabled) vibrator.vibrate(VibrationEffect.createOneShot(300, VibrationEffect.DEFAULT_AMPLITUDE));
-            showInfo("internet_error");
-            return;
-        } catch (IllegalStateException e) {
+        } catch (IOException | IllegalStateException e) {
             sendLogToCrashlytics(e);
             // Show error to user
             if (vibrationEnabled) vibrator.vibrate(VibrationEffect.createOneShot(300, VibrationEffect.DEFAULT_AMPLITUDE));
@@ -1115,9 +1099,6 @@ public class DictateInputMethodService extends InputMethodService {
             stopSwitchButton.setVisibility(View.GONE);
             recordButton.setVisibility(View.VISIBLE);
 
-            // Reset record button color to original blue
-            //recordButton.setBackgroundColor(getResources().getColor(R.color.dictate_blue, getTheme()));
-            //stopSwitchButton.setBackgroundColor(getResources().getColor(R.color.dictate_blue, getTheme()));
             startWhisperApiRequest();
         } else {
             Log.w("DictateInputMethodService", "stopRecording called but recorder is null");
@@ -1246,11 +1227,13 @@ public class DictateInputMethodService extends InputMethodService {
                 }
             }
 
-            mainHandler.post(() -> {
-                recordButton.setText(getDictateButtonText());
-                recordButton.setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_baseline_mic_20, 0, R.drawable.ic_baseline_folder_open_20, 0);
-                recordButton.setEnabled(true);
-            });
+            if (mainHandler != null) {
+                mainHandler.post(() -> {
+                    recordButton.setText(getDictateButtonText());
+                    recordButton.setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_baseline_mic_20, 0, R.drawable.ic_baseline_folder_open_20, 0);
+                    recordButton.setEnabled(true);
+                });
+            }
         });
     }
 
@@ -1378,11 +1361,14 @@ public class DictateInputMethodService extends InputMethodService {
                 }
             }
 
-            mainHandler.post(() -> {
-                promptsRv.setVisibility(View.VISIBLE);
-                runningPromptTv.setVisibility(View.GONE);
-                runningPromptPb.setVisibility(View.GONE);
-            });
+            if (mainHandler != null)
+            {
+                mainHandler.post(() -> {
+                    promptsRv.setVisibility(View.VISIBLE);
+                    runningPromptTv.setVisibility(View.GONE);
+                    runningPromptPb.setVisibility(View.GONE);
+                });
+            }
         });
     }
 
@@ -1712,7 +1698,7 @@ public class DictateInputMethodService extends InputMethodService {
 
             // Wenn die aktuelle Tastatur die Standardtastatur ist, gehen wir davon aus,
             // dass der Wechsel zur vorherigen Tastatur ein Wechsel zu derselben Tastatur wäre
-            boolean isDefault = currentImeId != null && defaultImeId != null && currentImeId.equals(defaultImeId);
+            boolean isDefault = currentImeId.equals(defaultImeId);
             Log.d("DictateInputMethodService", "Is current IME the default: " + isDefault);
 
             return isDefault;
@@ -1734,9 +1720,8 @@ public class DictateInputMethodService extends InputMethodService {
      * @param audioFile The audio file to transcribe
      * @param usageDb The usage database to track transcription usage
      * @return The transcribed text
-     * @throws Exception If transcription fails
      */
-    public static String transcribeAudioFile(Context context, File audioFile, UsageDatabaseHelper usageDb) throws Exception {
+    public static String transcribeAudioFile(Context context, File audioFile, UsageDatabaseHelper usageDb) {
         return transcribeAudioFile(context, audioFile, usageDb, "detect", "");
     }
 
@@ -1750,7 +1735,6 @@ public class DictateInputMethodService extends InputMethodService {
      * @param language The language to use for transcription (or "detect" for auto-detection)
      * @param stylePrompt The style prompt to use for transcription
      * @return The transcribed text
-     * @throws Exception If transcription fails
      */
     public static String transcribeAudioFile(Context context, File audioFile, UsageDatabaseHelper usageDb, String language, String stylePrompt) {
         SharedPreferences sp = context.getSharedPreferences("net.devemperor.dictate", Context.MODE_PRIVATE);

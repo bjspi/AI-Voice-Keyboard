@@ -296,7 +296,7 @@ public class PreferencesFragment extends PreferenceFragmentCompat {
                         .setPositiveButton(R.string.dictate_yes, (dialog, which) -> {
                             if (cacheFiles != null) {
                                 for (File file : cacheFiles) {
-                                    boolean delete = file.delete();
+                                    file.delete();
                                 }
                             }
                             cachePreference.setTitle(getString(R.string.dictate_settings_cache, 0, 0f));
