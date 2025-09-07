@@ -432,6 +432,14 @@ public class DictateInputMethodService extends InputMethodService {
             spaceButton.setText(getSpaceBarText());
             return true;
         });
+        spaceButton.setOnLongClickListener(v -> {
+            vibrate();
+
+            currentInputLanguagePos++;
+            recordButton.setText(getDictateButtonText());
+            spaceButton.setText(getSpaceBarText());
+            return true;
+        });
 
         // trash button to abort the recording and reset all variables and views
         trashButton.setOnClickListener(v -> {
@@ -1783,12 +1791,14 @@ public class DictateInputMethodService extends InputMethodService {
         TranscriptionCreateParams.Builder transcriptionBuilder = TranscriptionCreateParams.builder()
                 .file(audioFile.toPath())
                 .model(transcriptionModel)
+                .temperature(0.0) // we want the most accurate transcription, no randomness
                 .responseFormat(AudioResponseFormat.JSON);  // gpt-4o-transcribe only supports json
 
         if (language != null && !language.equals("detect")) transcriptionBuilder.language(language);
         if (stylePrompt != null && !stylePrompt.isEmpty()) transcriptionBuilder.prompt(stylePrompt);
         if (sp.getBoolean("net.devemperor.dictate.proxy_enabled", false)) {
-            if (DictateUtils.isValidProxy(proxyHost)) DictateUtils.applyProxy(clientBuilder, sp);
+            if (DictateUtils.isValidProxy(proxyHost))
+                DictateUtils.applyProxy(clientBuilder, sp);
         }
 
         // Logging für die API-Anfrage (ohne API-Key)
