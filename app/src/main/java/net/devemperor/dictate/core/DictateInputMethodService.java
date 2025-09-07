@@ -850,7 +850,7 @@ public class DictateInputMethodService extends InputMethodService {
 
                         startGPTApiRequest(model, selectedText);  // another normal prompt clicked
                     }
-                }, position -> {
+                }, position -> { // Longpress Callback Handler
                     vibrate();
                     PromptModel model = data.get(position);
                     if (model.getId() != -1 && model.getId() != -2) {  // Nur für echte Prompts, nicht für die speziellen Buttons
@@ -870,6 +870,11 @@ public class DictateInputMethodService extends InputMethodService {
                             // Aktualisiere die Anzeige
                             if (promptsAdapter != null) {
                                 promptsAdapter.setTemporaryAlwaysUsePrompt(model);
+                            }
+
+                            // And immediately start recording if not already recording
+                            if (!isRecording) {
+                                startRecording();
                             }
                         }
                     }
