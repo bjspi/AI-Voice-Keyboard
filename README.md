@@ -9,24 +9,27 @@ The APK can be downloaded as Debug Build (unsigned) [from here](https://github.c
 
 ## Key Improvements, Added Features and Bugfixes over original Dictate
 
-- **Transcription capability for Audiofiles**: Added Keyboard into the "Share / SendTo" menu to transcribe audio files from any app (e.g., WhatsApp voice messages) using share menu
-- **More accurate API Prompt control**: The original APP doesn't make use of System Prompts AND adds a custom prompt to each request, which can lead to unexpected results. See the original code for the constant PROMPT_REWORDING_BE_PRECISE. This can get confusing for the API because it could be written in a different language than your prompt. This version allows to set your defined Prompts as System Prompt and the input text (i.e. your transcription) is sent as user message. This way, the API has a much better understanding of what you want to achieve. Removed the used of PROMPT_REWORDING_BE_PRECISE, because all instructions shall be part of your own definitions.
-- **Automatic Use of Rewording-Prompts**: Added option to automatically use one of the defined custom prompts after each transcription automatically.
+- **Transcription via SendTo / Share**: Added Keyboard into the "Share / SendTo" menu to transcribe audio files from any app (e.g., WhatsApp voice messages) using share menu
+- **Better API Prompt control**: The original APP doesn't make use of System Prompts AND adds a custom prompt to each request, which can lead to unexpected results. See the original code for the constant PROMPT_REWORDING_BE_PRECISE. This can get confusing for the API because it could be written in a different language than your prompt. This version allows to set your defined Prompts as System Prompt and the input text (i.e. your transcription) is sent as user message. This way, the API has a much better understanding of what you want to achieve. Removed the used of PROMPT_REWORDING_BE_PRECISE, because all instructions shall be part of your own definitions.
+- **Automation of Rewording-Prompts**: Added option to automatically use one of the defined custom prompts after each transcription automatically.
 - **Quickselection of Temporary Rewording Prompt**: Added option to temporarily toggle one of the user-defined prompts for immediate use for the current Keyboard session (until Keyboard is closed)
-- **Live Prompting based on Text**: Added functionality to use the "Live Prompt" (Instant Prompt) based on the current text in the input field. If you click the LivePrompt Button as normal, it will start a recording and use the transcript as input for the prompt. If you make a text-selection and click the button, it will use the selected text in the input field as input for the prompt without starting a recording.
+- **Live/Instant Prompting based on Textselection**: Added functionality to use the "Live Prompt" (Instant Prompt) based on the current text in the input field. If you click the LivePrompt Button as normal, it will start a recording and use the transcript as input for the prompt. If you make a text-selection and click the button, it will use the selected text in the input field as input for the prompt without starting a recording.
 - **Added support for Bluetooth Headsets** : Added support for Bluetooth headsets (e.g., AirPods) as input source (Thanks to [@cuylerstuwe](https://github.com/cuylerstuwe/Dictate/tree/for-pr))
-- **Improved Workflow: Stop Recording and switch back**: Added a button to stop recording and return to previous Keyboard (e.g., Gboard) without needing to switch manually
-- **Enhanced Prompt Buttons**: Prompt buttons are always visible and intelligently handle text selection - using either existing selection or automatically selecting all text
+- **Improved Workflow: Stop Recording & switch back**: Added a button to stop recording and return to previous Keyboard (e.g., Gboard) without needing to switch manually
+- **Enhanced Prompt-Buttons UI**: Prompt buttons are always visible and intelligently handle text selection - using either existing selection or automatically selecting all text
   - **Pressing prompt buttons during Active Recording**: Pressing prompt buttons during an active recording just toggles this prompt to use after Recording Stop instead of immediately applying it to existing text
-- **Fixed Instant Recording**: Resolved issues with instant recording immediately ending in certain apps (e.g., Gemini)
-- **GBoard-Style Backspace-Functionality**: Added swipe-capability to backspace button for deleting multiple words at once
-- **GBoard like Shift-Functionality**: Pressing the button will toggle between lower, camel and upper case for the selected text or word at cursor position
+  - **Longpressing prompt buttons**: Longpressing prompt button without active recording selects this prompt for immediate use and starts a recording
+  - **Double click on Prompt Button**: Double-click prompt buttons opens the edit-dialogue directly (quick access to edit prompts)
+- **Fixed Instant Recording**: Resolved issues with instant recording immediately ending in certain apps (e.g., Gemini) by adding a minimal initialization delay (to avoid RACE conditions)
+- **GBoard-like functionality:**
+  - **Backspace-Key**: Added swipe-capability to delete multiple words in one go
+  - **Shift-Key**: Pressing the button will toggle between lower, camel and upper case for the selected text or word at cursor position
 - **Import/Export Prompts**: Added feature to import and export user-created prompts/presets
-- **Double click on Prompt Button**: Added feature to double-click prompt buttons in the Keyboard UI to edit them directly
-- **Improved Custom Characters with Emoji Support**: Smiley support added to "input custom characters" with improved limit and styling
-- **Better Style for Recording**: Added a more modern and appealing style during Recording to notice instantly when recording is active
+- **Custom Characters with Emoji Support**: Smiley support added to "input custom characters" with improved limit and styling
+- **Better UI while Recording**: Added a more modern and appealing style during Recording to notice instantly when recording is active
+- **Function to Play last Recording**: Added button in Preferences to play the previously recorded audio (mostly for debugging purposes in case of transcription issues)
 - **Smart Transcription Flow**: After finishing transcription, pressing send buttons (e.g., in WhatsApp) no longer triggers instant recording again
-- **Better Logging**: Enhanced logging for more effective ADB debugging
+- **Improved Logging**: Enhanced logging for more effective ADB debugging of prompts and API calls
 
 ## Showcase
 

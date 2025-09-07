@@ -8,6 +8,7 @@ import android.text.InputFilter;
 import android.text.InputType;
 import android.text.TextUtils;
 import android.widget.Toast;
+import android.media.MediaPlayer;
 
 import androidx.preference.EditTextPreference;
 import androidx.preference.MultiSelectListPreference;
@@ -26,11 +27,16 @@ import net.devemperor.dictate.usage.UsageActivity;
 import net.devemperor.dictate.usage.UsageDatabaseHelper;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 public class PreferencesFragment extends PreferenceFragmentCompat {
+
+    private MediaPlayer mediaPlayer;
+    private Preference playLastRecordingPref;
+    private File lastRecordingFile;
 
     SharedPreferences sp;
     UsageDatabaseHelper usageDatabaseHelper;
@@ -41,6 +47,45 @@ public class PreferencesFragment extends PreferenceFragmentCompat {
         setPreferencesFromResource(R.xml.fragment_preferences, null);
         sp = getPreferenceManager().getSharedPreferences();
         usageDatabaseHelper = new UsageDatabaseHelper(requireContext());
+
+        // Play/Pause für letzte Aufnahme
+        playLastRecordingPref = findPreference("net.devemperor.dictate.play_last_recording");
+        if (playLastRecordingPref != null) {
+            lastRecordingFile = new File(requireContext().getCacheDir(),
+                    sp.getString("net.devemperor.dictate.last_file_name", "audio.m4a"));
+            boolean exists = lastRecordingFile.exists();
+            playLastRecordingPref.setVisible(exists);
+            if (exists) {
+                playLastRecordingPref.setIcon(R.drawable.ic_play);
+                playLastRecordingPref.setOnPreferenceClickListener(pref -> {
+                    if (mediaPlayer == null) {
+                        mediaPlayer = new MediaPlayer();
+                        try {
+                            mediaPlayer.setDataSource(lastRecordingFile.getAbsolutePath());
+                            mediaPlayer.prepare();
+                        } catch (IOException e) {
+                            Toast.makeText(requireContext(),
+                                R.string.dictate_play_error, Toast.LENGTH_SHORT).show();
+                            return true;
+                        }
+                        mediaPlayer.setOnCompletionListener(mp -> {
+                            playLastRecordingPref.setIcon(R.drawable.ic_play);
+                            mediaPlayer.release();
+                            mediaPlayer = null;
+                        });
+                        mediaPlayer.start();
+                        playLastRecordingPref.setIcon(R.drawable.ic_pause);
+                    } else if (mediaPlayer.isPlaying()) {
+                        mediaPlayer.pause();
+                        playLastRecordingPref.setIcon(R.drawable.ic_play);
+                    } else {
+                        mediaPlayer.start();
+                        playLastRecordingPref.setIcon(R.drawable.ic_pause);
+                    }
+                    return true;
+                });
+            }
+        }
 
         Preference editPromptsPreference = findPreference("net.devemperor.dictate.edit_custom_rewording_prompts");
         if (editPromptsPreference != null) {
@@ -81,7 +126,7 @@ public class PreferencesFragment extends PreferenceFragmentCompat {
                 StringBuilder result = new StringBuilder();
                 int start = iterator.first();
                 int end = iterator.next();
-                
+
                 while (end != java.text.BreakIterator.DONE) {
                     if (result.length() > 0) {
                         result.append(" ");
@@ -106,16 +151,14 @@ public class PreferencesFragment extends PreferenceFragmentCompat {
                             java.text.BreakIterator iterator = java.text.BreakIterator.getCharacterInstance();
                             String newText = dest.toString().substring(0, dstart) + source.toString() + dest.toString().substring(dend);
                             iterator.setText(newText);
-                            
+
                             int clusterCount = 0;
-                            int first = iterator.first();
                             int last = iterator.next();
                             while (last != java.text.BreakIterator.DONE) {
                                 clusterCount++;
-                                first = last;
                                 last = iterator.next();
                             }
-                            
+
                             // Erlaube maximal 14 Grapheme Clusters
                             if (clusterCount > 14) {
                                 return ""; // Verweigere die Eingabe
@@ -136,8 +179,8 @@ public class PreferencesFragment extends PreferenceFragmentCompat {
                 // Entferne alle Leerzeichen aus dem Text\n
                 String cleanedText = text.replaceAll("\\\\s+", "");
 
-                // Stelle sicher, dass nur vollst\u00e4ndige Grapheme Clusters gespeichert werden
-                // Dies verhindert, dass unvollst\u00e4ndige Emojis gespeichert werden
+                // Stelle sicher, dass nur vollständige Grapheme Clusters gespeichert werden
+                // Dies verhindert, dass unvollständige Emojis gespeichert werden
                 java.text.BreakIterator iterator = java.text.BreakIterator.getCharacterInstance();
                 iterator.setText(cleanedText);
                 StringBuilder validText = new StringBuilder();
@@ -149,9 +192,9 @@ public class PreferencesFragment extends PreferenceFragmentCompat {
                     end = iterator.next();
                 }
                 String finalText = validText.toString();
-                // Wenn Leerzeichen entfernt wurden oder unvollst\u00e4ndige Emojis korrigiert wurden, aktualisiere den Wert
+                // Wenn Leerzeichen entfernt wurden oder unvollständige Emojis korrigiert wurden, aktualisiere den Wert
                 if (!finalText.equals(text)) {
-                    // Wir geben den bereinigten Text zur\u00fcck, der dann als neuer Wert gespeichert wird
+                    // Wir geben den bereinigten Text zurück, der dann als neuer Wert gespeichert wird
                     return true;
                 }
                 return true;
@@ -253,7 +296,7 @@ public class PreferencesFragment extends PreferenceFragmentCompat {
                         .setPositiveButton(R.string.dictate_yes, (dialog, which) -> {
                             if (cacheFiles != null) {
                                 for (File file : cacheFiles) {
-                                    file.delete();
+                                    boolean delete = file.delete();
                                 }
                             }
                             cachePreference.setTitle(getString(R.string.dictate_settings_cache, 0, 0f));
@@ -305,4 +348,14 @@ public class PreferencesFragment extends PreferenceFragmentCompat {
             });
         }
     }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        if (mediaPlayer != null) {
+            mediaPlayer.release();
+            mediaPlayer = null;
+        }
+    }
 }
+

@@ -26,6 +26,12 @@
         android:title="@string/dictate_settings_title"
         app:iconSpaceReserved="false">
 
+        <androidx.preference.Preference
+            android:key="net.devemperor.dictate.play_last_recording"
+            android:title="@string/dictate_settings_play_last_recording_title"
+            app:iconSpaceReserved="false"
+            app:isPreferenceVisible="false" />
+
         <androidx.preference.MultiSelectListPreference
             android:key="net.devemperor.dictate.input_languages"
             android:title="@string/dictate_settings_input_languages_title"
