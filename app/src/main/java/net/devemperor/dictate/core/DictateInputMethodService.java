@@ -429,6 +429,7 @@ public class DictateInputMethodService extends InputMethodService {
 
             currentInputLanguagePos++;
             recordButton.setText(getDictateButtonText());
+            spaceButton.setText(getSpaceBarText());
             return true;
         });
 
@@ -458,6 +459,7 @@ public class DictateInputMethodService extends InputMethodService {
             recordButton.setText(getDictateButtonText());
             recordButton.setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_baseline_mic_20, 0, R.drawable.ic_baseline_folder_open_20, 0);
             recordButton.setEnabled(true);
+            spaceButton.setText(getSpaceBarText());
             stopButton.setVisibility(View.GONE);
             stopSwitchButton.setVisibility(View.GONE);
             recordButton.setVisibility(View.VISIBLE);
@@ -943,6 +945,7 @@ public class DictateInputMethodService extends InputMethodService {
 
             // get the currently selected input language
             recordButton.setText(getDictateButtonText());
+            spaceButton.setText(getSpaceBarText());
 
             // check if user enabled audio focus
             audioFocusEnabled = sp.getBoolean("net.devemperor.dictate.audio_focus", true);
@@ -1230,6 +1233,7 @@ public class DictateInputMethodService extends InputMethodService {
             if (mainHandler != null) {
                 mainHandler.post(() -> {
                     recordButton.setText(getDictateButtonText());
+                    spaceButton.setText(getSpaceBarText());
                     recordButton.setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_baseline_mic_20, 0, R.drawable.ic_baseline_folder_open_20, 0);
                     recordButton.setEnabled(true);
                 });
@@ -1558,6 +1562,18 @@ public class DictateInputMethodService extends InputMethodService {
         return recordDifferentLanguages.get(allLanguagesValues.indexOf(currentInputLanguagesValues.toArray()[currentInputLanguagePos].toString()));
     }
 
+    private String getSpaceBarText()
+    {
+        Set<String> currentInputLanguagesValues = new HashSet<>(Arrays.asList(getResources().getStringArray(R.array.dictate_default_input_languages)));
+        currentInputLanguagesValues = sp.getStringSet("net.devemperor.dictate.input_languages", currentInputLanguagesValues);
+
+        if (currentInputLanguagePos >= currentInputLanguagesValues.size()) currentInputLanguagePos = 0;
+        sp.edit().putInt("net.devemperor.dictate.input_language_pos", currentInputLanguagePos).apply();
+
+        currentInputLanguageValue = currentInputLanguagesValues.toArray()[currentInputLanguagePos].toString();
+        return currentInputLanguageValue.toUpperCase();
+    }
+
     private void deleteOneCharacter() {
         InputConnection inputConnection = getCurrentInputConnection();
         if (inputConnection != null) {
@@ -1776,7 +1792,7 @@ public class DictateInputMethodService extends InputMethodService {
         }
 
         // Logging für die API-Anfrage (ohne API-Key)
-        Log.d("DictateAPI", "Transcription-API Request - URL: " + apiHost + ", Modell: " + transcriptionModel + ", Sprache: " + (language != null ? language : "detect") + ", Prompt: " + (stylePrompt != null && !stylePrompt.isEmpty() ? stylePrompt : "none"));
+        Log.d("DictateAPI", "Transcription-API Request - URL: " + apiHost + ", Modell: " + transcriptionModel + ", Language: " + (language != null ? language : "detect") + ", Prompt: " + (stylePrompt != null && !stylePrompt.isEmpty() ? stylePrompt : "none"));
 
         Transcription transcription = clientBuilder.build().audio().transcriptions().create(transcriptionBuilder.build()).asTranscription();
         String resultText = transcription.text().strip();  // Groq sometimes adds leading whitespace
