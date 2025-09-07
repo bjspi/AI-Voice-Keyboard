@@ -163,6 +163,7 @@ public class DictateInputMethodService extends InputMethodService {
     private MaterialButton editCutButton;
     private MaterialButton editCopyButton;
     private MaterialButton editPasteButton;
+    private MaterialButton editCapitalizationButton;
     private LinearLayout overlayCharactersLl;
     //private MaterialButton selectedCharacter = null;
 
@@ -172,6 +173,9 @@ public class DictateInputMethodService extends InputMethodService {
     UsageDatabaseHelper usageDb;
 
     private boolean isBluetoothScoStarted = false;
+
+    // Cycle state for capitalization toggle: 0=lowercase, 1=Title Case, 2=UPPERCASE
+    private int capitalizationCycleState = 0;
 
     // start method that is called when user opens the keyboard
     @SuppressLint("ClickableViewAccessibility")
@@ -238,6 +242,7 @@ public class DictateInputMethodService extends InputMethodService {
         editCutButton = dictateKeyboardView.findViewById(R.id.edit_cut_btn);
         editCopyButton = dictateKeyboardView.findViewById(R.id.edit_copy_btn);
         editPasteButton = dictateKeyboardView.findViewById(R.id.edit_paste_btn);
+        editCapitalizationButton = dictateKeyboardView.findViewById(R.id.edit_capitalization_btn);
 
         overlayCharactersLl = dictateKeyboardView.findViewById(R.id.overlay_characters_ll);
 
@@ -637,6 +642,71 @@ public class DictateInputMethodService extends InputMethodService {
                 }
             }
             return false;
+        });
+
+        editCapitalizationButton.setOnClickListener(v -> {
+            vibrate();
+
+            InputConnection ic = getCurrentInputConnection();
+            if (ic == null) return;
+
+            ic.beginBatchEdit();
+            try {
+                ExtractedText et = ic.getExtractedText(new ExtractedTextRequest(), 0);
+                if (et == null || et.text == null) return;
+
+                int selStart = et.selectionStart;
+                int selEnd = et.selectionEnd;
+                String textToTransform;
+
+                // If no selection, find and select the word at the cursor
+                if (selStart == selEnd) {
+                    String fullText = et.text.toString();
+                    int start = selStart;
+                    int end = selEnd;
+                    // expand left
+                    while (start > 0 && Character.isLetterOrDigit(fullText.charAt(start - 1))) start--;
+                    // expand right
+                    while (end < fullText.length() && Character.isLetterOrDigit(fullText.charAt(end))) end++;
+                    if (start == end) return; // nothing to transform
+
+                    selStart = start;
+                    selEnd = end;
+                    textToTransform = fullText.substring(selStart, selEnd);
+                    // Set selection for the upcoming commitText to replace the word
+                    ic.setSelection(et.startOffset + selStart, et.startOffset + selEnd);
+                } else {
+                    textToTransform = et.text.subSequence(selStart, selEnd).toString();
+                }
+
+                if (textToTransform.isEmpty()) return;
+
+                String transformed;
+                Locale locale = Locale.getDefault();
+                switch (capitalizationCycleState) {
+                    case 0:
+                        transformed = textToTransform.toLowerCase(locale);
+                        break;
+                    case 1:
+                        transformed = DictateUtils.toTitleCase(textToTransform, locale);
+                        break;
+                    case 2:
+                        transformed = textToTransform.toUpperCase(locale);
+                        break;
+                    default:
+                        transformed = textToTransform;
+                }
+                capitalizationCycleState = (capitalizationCycleState + 1) % 3;
+
+                // Replace the selected text
+                ic.commitText(transformed, 1);
+
+                // Restore the selection over the newly transformed text
+                int absoluteSelStart = et.startOffset + selStart;
+                ic.setSelection(absoluteSelStart, absoluteSelStart + transformed.length());
+            } finally {
+                ic.endBatchEdit();
+            }
         });
 
         editSelectAllButton.setOnClickListener(v -> {

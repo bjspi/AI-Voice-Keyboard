@@ -309,12 +309,23 @@
             style="@style/KeyboardButtonStyle"
             android:layout_width="0dp"
             android:layout_height="match_parent"
+            android:layout_marginHorizontal="4dp"
             android:foreground="@drawable/ic_baseline_content_paste_24"
             android:foregroundGravity="center"
+            app:layout_constraintEnd_toStartOf="@id/edit_capitalization_btn"
+            app:layout_constraintStart_toEndOf="@id/edit_copy_btn" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/edit_capitalization_btn"
+            style="@style/KeyboardButtonStyle"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
             android:layout_marginStart="4dp"
             android:layout_marginEnd="16dp"
+            android:foreground="@drawable/ic_baseline_content_capitalization_24"
+            android:foregroundGravity="center"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toEndOf="@id/edit_copy_btn"/>
+            app:layout_constraintStart_toEndOf="@id/edit_paste_btn" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 

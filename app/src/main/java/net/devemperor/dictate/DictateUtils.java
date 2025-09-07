@@ -10,6 +10,8 @@ import java.net.Authenticator;
 import java.net.InetSocketAddress;
 import java.net.PasswordAuthentication;
 import java.net.Proxy;
+import java.text.BreakIterator;
+import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -321,5 +323,46 @@ public class DictateUtils {
             default:
                 return "";
         }
+    }
+
+    // --- NEW: Title Case utility ---
+    /**
+     * Converts a string to title case (first letter of each word uppercase, rest lowercase),
+     * preserving non-letter/digit tokens and respecting the given locale.
+     * Uses BreakIterator for robust tokenization including Unicode grapheme clusters.
+     *
+     * @param input  Input string
+     * @param locale Locale to use for casing rules
+     * @return Title-cased string
+     */
+    public static String toTitleCase(String input, Locale locale) {
+        if (input == null || input.isEmpty()) return input;
+        StringBuilder result = new StringBuilder(input.length());
+        BreakIterator wordIterator = BreakIterator.getWordInstance(locale != null ? locale : Locale.getDefault());
+        wordIterator.setText(input);
+        int start = wordIterator.first();
+        for (int end = wordIterator.next(); end != BreakIterator.DONE; start = end, end = wordIterator.next()) {
+            String token = input.substring(start, end);
+            if (token.isEmpty()) {
+                continue;
+            }
+            int firstCodePoint = token.codePointAt(0);
+            if (Character.isLetterOrDigit(firstCodePoint)) {
+                String first = new String(Character.toChars(firstCodePoint));
+                String rest = token.substring(first.length());
+                result.append(first.toUpperCase(locale != null ? locale : Locale.getDefault()));
+                result.append(rest.toLowerCase(locale != null ? locale : Locale.getDefault()));
+            } else {
+                result.append(token);
+            }
+        }
+        return result.toString();
+    }
+
+    /**
+     * Overload using the default locale.
+     */
+    public static String toTitleCase(String input) {
+        return toTitleCase(input, Locale.getDefault());
     }
 }
