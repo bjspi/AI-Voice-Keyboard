@@ -64,6 +64,7 @@
     <string name="dictate_microphone_permission_denied">Microphone permission denied (denied).</string>
     <string name="dictate_record">Record</string>
     <string name="dictate_send">Send (%1$s)</string>
+    <string name="dictate_connecting">Connecting BT</string>
     <string name="dictate_sending">Sending …</string>
     <string name="dictate_timeout_msg">Timeout exceeded. Maybe OpenAI is overloaded or you have a poor internet connection.</string>
     <string name="dictate_invalid_api_key_msg">Invalid API key. Open settings to correct it?</string>

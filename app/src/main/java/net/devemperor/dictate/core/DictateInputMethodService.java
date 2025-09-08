@@ -2,6 +2,9 @@ package net.devemperor.dictate.core;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
+import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothHeadset;
+import android.bluetooth.BluetoothProfile;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -65,7 +68,6 @@ import net.devemperor.dictate.R;
 import net.devemperor.dictate.usage.UsageDatabaseHelper;
 
 import java.io.File;
-import java.io.IOException;
 import java.io.InterruptedIOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -154,7 +156,20 @@ public class DictateInputMethodService extends InputMethodService {
 
     UsageDatabaseHelper usageDb;
 
-    private boolean isBluetoothScoStarted = false;
+    /**
+     * Bluetooth related variables and methods
+     */
+
+    private boolean isBluetoothHeadsetConnected = false;
+    private boolean isScoConnecting = false;
+    private boolean isUsingBluetoothRoute = false;
+    private Runnable scoTimeoutRunnable;
+    private static final int SCO_CONNECT_TIMEOUT_MS = 1500;
+
+    private BluetoothAdapter bluetoothAdapter;
+    private BluetoothHeadset bluetoothHeadset;
+    private boolean isRecordingAttempted = false; // Temp variable to track if recording was attempted
+
 
     // Cycle state for capitalization toggle: 0=lowercase, 1=Title Case, 2=UPPERCASE
     private int capitalizationCycleState = 0;
@@ -278,21 +293,22 @@ public class DictateInputMethodService extends InputMethodService {
                 .build();
 
         settingsButton.setOnClickListener(v -> {
-            if (isRecording) trashButton.performClick();
+            if (isRecording)
+                trashButton.performClick();
+
             infoCl.setVisibility(View.GONE);
             openSettingsActivity();
         });
 
-        recordButton.setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_baseline_mic_20, 0, R.drawable.ic_baseline_folder_open_20, 0);
+        updateRecordButtonIcon();
         recordButton.setOnClickListener(v -> {
             vibrate();
 
             infoCl.setVisibility(View.GONE);
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
                 openSettingsActivity();
-            } else {
+            } else
                 startRecording();
-            }
         });
 
         recordButton.setOnLongClickListener(v -> {
@@ -444,10 +460,12 @@ public class DictateInputMethodService extends InputMethodService {
         // trash button to abort the recording and reset all variables and views
         trashButton.setOnClickListener(v -> {
             vibrate();
-            if (recorder != null) {
+            if (recorder != null)
+            {
                 try {
                     recorder.stop();
-                } catch (RuntimeException ignored) { }
+                }
+                catch (RuntimeException ignored) { }
                 recorder.release();
                 recorder = null;
 
@@ -455,17 +473,19 @@ public class DictateInputMethodService extends InputMethodService {
                     recordTimeHandler.removeCallbacks(recordTimeRunnable);
                 }
             }
-            if (audioFocusEnabled) am.abandonAudioFocusRequest(audioFocusRequest);
+            if (audioFocusEnabled)
+                am.abandonAudioFocusRequest(audioFocusRequest);
 
             isRecording = false;
+
             // Setze den Recording-Status im Adapter
-            if (promptsAdapter != null) {
+            if (promptsAdapter != null)
                 promptsAdapter.setIsRecording(false);
-            }
+
             isPaused = false;
             instantPrompt = false;
             recordButton.setText(getDictateButtonText());
-            recordButton.setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_baseline_mic_20, 0, R.drawable.ic_baseline_folder_open_20, 0);
+            updateRecordButtonIcon();
             recordButton.setEnabled(true);
             spaceButton.setText(getSpaceBarText());
             stopButton.setVisibility(View.GONE);
@@ -476,10 +496,12 @@ public class DictateInputMethodService extends InputMethodService {
             trashButton.setVisibility(View.GONE);
             resendButton.setVisibility(View.GONE);
             infoCl.setVisibility(View.GONE);
+
             // Reset record button color to original blue
-            //recordButton.setBackgroundColor(getResources().getColor(R.color.dictate_blue, getTheme()));
             stopSwitchButton.setBackgroundColor(getResources().getColor(R.color.dictate_blue, getTheme()));
 
+            // Maybe stop Bluetooth SCO audio connection
+            stopBluetoothSco();
         });
 
         // space button that changes cursor position if user swipes over it
@@ -536,7 +558,9 @@ public class DictateInputMethodService extends InputMethodService {
                     stopButton.setBackgroundColor(getResources().getColor(R.color.dictate_recording_green, getTheme()));
                     stopSwitchButton.setBackgroundColor(getResources().getColor(R.color.dictate_recording_green, getTheme()));
                 } else {
-                    if (audioFocusEnabled) am.abandonAudioFocusRequest(audioFocusRequest);
+                    if (audioFocusEnabled)
+                        am.abandonAudioFocusRequest(audioFocusRequest);
+
                     recorder.pause();
                     recordTimeHandler.removeCallbacks(recordTimeRunnable);
                     pauseButton.setForeground(AppCompatResources.getDrawable(context, R.drawable.ic_baseline_mic_24));
@@ -723,6 +747,17 @@ public class DictateInputMethodService extends InputMethodService {
     public void onFinishInputView(boolean finishingInput) {
         super.onFinishInputView(finishingInput);
 
+        // Deregister Bluetooth receiver and close profile proxy
+        try {
+            unregisterReceiver(bluetoothStateReceiver);
+        } catch (IllegalArgumentException e) {
+            // Receiver war nicht registriert, alles ok.
+        }
+        if (bluetoothAdapter != null && bluetoothHeadset != null) {
+            bluetoothAdapter.closeProfileProxy(BluetoothProfile.HEADSET, bluetoothHeadset);
+            bluetoothHeadset = null;
+        }
+
         if (recorder != null) {
             try {
                 recorder.stop();
@@ -762,9 +797,11 @@ public class DictateInputMethodService extends InputMethodService {
         isRecording = false;
         isPaused = false;
         instantPrompt = false;
-        if (audioFocusEnabled) am.abandonAudioFocusRequest(audioFocusRequest);
+        if (audioFocusEnabled)
+            am.abandonAudioFocusRequest(audioFocusRequest);
+
         recordButton.setText(R.string.dictate_record);
-        recordButton.setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_baseline_mic_20, 0, R.drawable.ic_baseline_folder_open_20, 0);
+        updateRecordButtonIcon();
         recordButton.setEnabled(true);
 
         // Setze keyboardWasVisible auf false, da die Tastatur jetzt geschlossen ist
@@ -786,13 +823,17 @@ public class DictateInputMethodService extends InputMethodService {
 
     // method is called if the keyboard appears again
     @Override
-    public void onStartInputView(EditorInfo info, boolean restarting) {
+    public void onStartInputView(EditorInfo info, boolean restarting)
+    {
         super.onStartInputView(info, restarting);
 
         // Setze imeJustBound nur, wenn die Tastatur nicht bereits sichtbar war
-        if (!keyboardWasVisible) {
+        if (!keyboardWasVisible)
             imeJustBound = true;
-        }
+
+        // Start Bluetooth receiver and check initial state
+        registerBluetoothReceiver();
+        checkInitialBluetoothState();
 
         // Reinitialize handlers if they were cleaned up
         if (mainHandler == null) mainHandler = new Handler(Looper.getMainLooper());
@@ -954,6 +995,7 @@ public class DictateInputMethodService extends InputMethodService {
             // get the currently selected input language
             recordButton.setText(getDictateButtonText());
             spaceButton.setText(getSpaceBarText());
+            updateRecordButtonIcon(); // Update the record button icon based on Bluetooth connection status
 
             // check if user enabled audio focus
             audioFocusEnabled = sp.getBoolean("net.devemperor.dictate.audio_focus", true);
@@ -1025,66 +1067,127 @@ public class DictateInputMethodService extends InputMethodService {
     }
 
     private void startRecording() {
-        // Check if we're already recording
-        if (isRecording) {
-            return;
-        }
+        if (isRecording) return;
 
         audioFile = setLastAudioFile("audio.m4a");
 
-        boolean useBluetoothMic = sp.getBoolean("net.devemperor.dictate.use_bluetooth_mic", true);
-        boolean bluetoothAvailable = isBluetoothScoAvailable();
+        final boolean useBluetoothMicPref = sp.getBoolean("net.devemperor.dictate.use_bluetooth_mic", true);
+        final boolean headsetConnected = isBluetoothHeadsetConnected;
+        final boolean scoAvailable = am != null && am.isBluetoothScoAvailableOffCall();
 
-        if (useBluetoothMic && bluetoothAvailable) {
-            startBluetoothSco();
-        }
-
-        recorder = new MediaRecorder();
-        recorder.setAudioSource(MediaRecorder.AudioSource.MIC); // This will pick up from Bluetooth SCO when SCO is active
-        recorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
-        recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
-        recorder.setAudioEncodingBitRate(64000);
-        recorder.setAudioSamplingRate(44100);
-        recorder.setOutputFile(audioFile);
-
-        if (audioFocusEnabled) am.requestAudioFocus(audioFocusRequest);
-
-        try {
-            recorder.prepare();
-            recorder.start();
-        } catch (IOException | IllegalStateException e) {
-            sendLogToCrashlytics(e);
-            // Show error to user
-            if (vibrationEnabled) vibrator.vibrate(VibrationEffect.createOneShot(300, VibrationEffect.DEFAULT_AMPLITUDE));
-            showInfo("internet_error");
-            return;
-        }
-
-        recordButton.setVisibility(View.GONE);
+        // UI erstmal NICHT "grün" schalten – erst wenn Recorder wirklich läuft
+        recordButton.setEnabled(false);
         stopButton.setVisibility(View.VISIBLE);
         stopSwitchButton.setVisibility(View.VISIBLE);
-        stopButton.setText(R.string.dictate_send);
-        stopButton.setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_baseline_send_20, 0, 0, 0);
-        pauseButton.setVisibility(View.VISIBLE);
-        trashButton.setVisibility(View.VISIBLE);
+        pauseButton.setVisibility(View.GONE);
+        trashButton.setVisibility(View.GONE);
         resendButton.setVisibility(View.GONE);
-        isRecording = true;
-        // Setze den Recording-Status im Adapter
-        if (promptsAdapter != null) {
-            promptsAdapter.setIsRecording(true);
-        }
-        // Set stop button background to light green
-        stopButton.setBackgroundColor(getResources().getColor(R.color.dictate_recording_green, getTheme()));
-        stopSwitchButton.setBackgroundColor(getResources().getColor(R.color.dictate_recording_green, getTheme()));
-        elapsedTime = 0;
-        recordTimeHandler.post(recordTimeRunnable);
 
-        // Log the start of recording for debugging
-        Log.d("DictateInputMethodService", "Recording started successfully");
+        // Falls BT gewünscht & möglich: erst SCO verbinden, dann Recorder starten
+        if (useBluetoothMicPref && headsetConnected && scoAvailable)
+        {
+            stopButton.setText(R.string.dictate_connecting);
+            stopButton.setBackgroundColor(getResources().getColor(R.color.dictate_recording_green_connecting, getTheme()));
+            stopSwitchButton.setBackgroundColor(getResources().getColor(R.color.dictate_recording_green_connecting, getTheme()));
+
+            isScoConnecting = true;
+            isUsingBluetoothRoute = false;
+            isRecordingAttempted = true;
+
+            // Audio-Mode für HFP setzen, Focus anfordern
+            if (audioFocusEnabled) am.requestAudioFocus(audioFocusRequest);
+            am.setMode(AudioManager.MODE_IN_COMMUNICATION);
+            startBluetoothSco();
+
+            // Timeout -> Fallback auf Gerätemikro
+            scoTimeoutRunnable = () -> {
+                if (isScoConnecting) {
+                    Log.w("DictateInputMethodService", "SCO connect timeout -> fallback to device mic");
+                    isScoConnecting = false;
+                    isUsingBluetoothRoute = false;
+                    proceedWithRecordingSetup(); // startet mit Gerätemikro
+                }
+            };
+            mainHandler.postDelayed(scoTimeoutRunnable, SCO_CONNECT_TIMEOUT_MS);
+            return; // Warten auf Receiver
+        }
+
+        // Original Text...
+        stopButton.setText(R.string.dictate_send);
+
+        // Kein BT oder nicht verfügbar -> sofort mit Gerätemikro starten
+        isScoConnecting = false;
+        isUsingBluetoothRoute = false;
+        if (audioFocusEnabled) am.requestAudioFocus(audioFocusRequest);
+        am.setMode(AudioManager.MODE_IN_COMMUNICATION);
+        proceedWithRecordingSetup();
     }
 
-    private void stopRecording() {
-        if (recorder != null) {
+    private void proceedWithRecordingSetup() {
+        try {
+            recorder = new MediaRecorder();
+
+            // VOICE_RECOGNITION bevorzugt für HFP/Headset
+            recorder.setAudioSource(MediaRecorder.AudioSource.VOICE_RECOGNITION);
+            recorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
+            recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
+            recorder.setAudioEncodingBitRate(64000);
+            recorder.setAudioSamplingRate(16000); // für ASR oft stabiler; 44100 geht auch
+            recorder.setOutputFile(audioFile.getAbsolutePath());
+
+            recorder.prepare();
+            recorder.start();
+
+            // UI erst jetzt aktualisieren
+            isRecording = true;
+            isPaused = false;
+            if (promptsAdapter != null)
+                promptsAdapter.setIsRecording(true);
+
+            stopButton.setBackgroundColor(getResources().getColor(R.color.dictate_recording_green, getTheme()));
+            stopButton.setText(R.string.dictate_send);
+            stopSwitchButton.setBackgroundColor(getResources().getColor(R.color.dictate_recording_green, getTheme()));
+
+            if (isUsingBluetoothRoute) {
+                stopButton.setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_baseline_bluetooth_24, 0, 0, 0);
+            } else {
+                stopButton.setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_baseline_send_20, 0, 0, 0);
+            }
+
+            pauseButton.setVisibility(View.VISIBLE);
+            trashButton.setVisibility(View.VISIBLE);
+            recordButton.setVisibility(View.GONE);
+            elapsedTime = 0;
+            recordTimeHandler.post(recordTimeRunnable);
+
+            Log.d("DictateInputMethodService", "Recording started. BT route: " + isUsingBluetoothRoute);
+        } catch (Exception e) {
+            Log.e("DictateInputMethodService", "Recorder start failed", e);
+            // Aufräumen
+            safeReleaseRecorder();
+            // Audio-Mode/Focus zurück
+            try { am.setMode(AudioManager.MODE_NORMAL); } catch (Exception ignore) {}
+            if (audioFocusEnabled) am.abandonAudioFocusRequest(audioFocusRequest);
+            stopBluetoothSco(); // falls aktiv
+
+            // Nutzerfreundliche Meldung (kein "internet_error")
+            showInfo("format_not_supported"); // oder eigenes "audio_error"
+            recordButton.setEnabled(true);
+            stopButton.setVisibility(View.GONE);
+            stopSwitchButton.setVisibility(View.GONE);
+            recordButton.setVisibility(View.VISIBLE);
+        } finally {
+            isScoConnecting = false;
+            isRecordingAttempted = false;
+            if (scoTimeoutRunnable != null)
+                mainHandler.removeCallbacks(scoTimeoutRunnable);
+        }
+    }
+
+    private void stopRecording()
+    {
+        if (recorder != null)
+        {
             try {
                 recorder.stop();
                 Log.d("DictateInputMethodService", "Recording stopped successfully");
@@ -1092,20 +1195,17 @@ public class DictateInputMethodService extends InputMethodService {
                 Log.w("DictateInputMethodService", "Error stopping recording: " + e.getMessage());
                 // This can happen if recording was too short or other issues
             }
-            try {
-                recorder.release();
-            } catch (RuntimeException e) {
-                Log.w("DictateInputMethodService", "Error releasing recorder: " + e.getMessage());
-            }
-            recorder = null;
 
-            if (isBluetoothScoStarted) {
-                stopBluetoothSco();
-            }
-
-            if (recordTimeRunnable != null) {
+            safeReleaseRecorder();
+            if (recordTimeRunnable != null)
                 recordTimeHandler.removeCallbacks(recordTimeRunnable);
-            }
+
+            // Maybe stop Bluetooth SCO audio connection
+            stopBluetoothSco();
+
+            if (audioFocusEnabled) am.abandonAudioFocusRequest(audioFocusRequest);
+            try { am.setMode(AudioManager.MODE_NORMAL); } catch (Exception ignore) {}
+
             stopButton.setVisibility(View.GONE);
             stopSwitchButton.setVisibility(View.GONE);
             recordButton.setVisibility(View.VISIBLE);
@@ -1114,6 +1214,13 @@ public class DictateInputMethodService extends InputMethodService {
         } else {
             Log.w("DictateInputMethodService", "stopRecording called but recorder is null");
         }
+    }
+
+    private void safeReleaseRecorder() {
+        try { recorder.release(); } catch (Exception ignore) {}
+        recorder = null;
+        isRecording = false;
+        if (promptsAdapter != null) promptsAdapter.setIsRecording(false);
     }
 
     private void startWhisperApiRequest() {
@@ -1128,6 +1235,7 @@ public class DictateInputMethodService extends InputMethodService {
         resendButton.setVisibility(View.GONE);
         infoCl.setVisibility(View.GONE);
         isRecording = false;
+
         // Setze den Recording-Status im Adapter
         if (promptsAdapter != null) {
             promptsAdapter.setIsRecording(false);
@@ -1242,7 +1350,7 @@ public class DictateInputMethodService extends InputMethodService {
                 mainHandler.post(() -> {
                     recordButton.setText(getDictateButtonText());
                     spaceButton.setText(getSpaceBarText());
-                    recordButton.setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_baseline_mic_20, 0, R.drawable.ic_baseline_folder_open_20, 0);
+                    updateRecordButtonIcon();
                     recordButton.setEnabled(true);
                 });
             }
@@ -1819,61 +1927,136 @@ public class DictateInputMethodService extends InputMethodService {
     public void onCreate() {
         super.onCreate();
 
-        // Register SCO state change receiver
-        IntentFilter filter = new IntentFilter(AudioManager.ACTION_SCO_AUDIO_STATE_UPDATED);
-        registerReceiver(scoStateReceiver, filter);
+        // Initiliaze BluetoothAdapter
+        bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
     }
 
     @Override
     public void onDestroy() {
         super.onDestroy();
 
-        // Unregister SCO state change receiver
-        unregisterReceiver(scoStateReceiver);
-
         // Stop Bluetooth SCO if it's still running
-        if (isBluetoothScoStarted) {
-            stopBluetoothSco();
-        }
+        stopBluetoothSco();
     }
 
-    private final BroadcastReceiver scoStateReceiver = new BroadcastReceiver() {
+    // Combined BroadcastReceiver for Bluetooth connection and SCO state changes
+    private final BroadcastReceiver bluetoothStateReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-            int state = intent.getIntExtra(AudioManager.EXTRA_SCO_AUDIO_STATE, -1);
-            if (state == AudioManager.SCO_AUDIO_STATE_CONNECTED) {
-                // Bluetooth SCO is now connected and can be used
-                Log.d("DictateInputMethodService", "Bluetooth SCO connected");
-            } else if (state == AudioManager.SCO_AUDIO_STATE_DISCONNECTED) {
-                Log.d("DictateInputMethodService", "Bluetooth SCO disconnected");
+            String action = intent.getAction();
+            if (action == null) return;
+
+            switch (action) {
+                case BluetoothHeadset.ACTION_CONNECTION_STATE_CHANGED:
+                    int state = intent.getIntExtra(BluetoothProfile.EXTRA_STATE, BluetoothProfile.STATE_DISCONNECTED);
+                    if (state == BluetoothProfile.STATE_CONNECTED) {
+                        Log.d("DictateInputMethodService", "Bluetooth Headset connected");
+                        isBluetoothHeadsetConnected = true;
+                    }
+                    else if (state == BluetoothProfile.STATE_DISCONNECTED)
+                    {
+                        Log.d("DictateInputMethodService", "Bluetooth Headset disconnected");
+                        isBluetoothHeadsetConnected = false;
+
+                        // Falls die Aufnahme gerade läuft, SCO stoppen
+                        if (isRecording)
+                            stopBluetoothSco();
+                    }
+                    updateRecordButtonIcon();
+                    break;
+
+                case AudioManager.ACTION_SCO_AUDIO_STATE_UPDATED:
+                    int scoState = intent.getIntExtra(AudioManager.EXTRA_SCO_AUDIO_STATE, AudioManager.SCO_AUDIO_STATE_ERROR);
+                    if (scoState == AudioManager.SCO_AUDIO_STATE_CONNECTED) {
+                        Log.d("DictateInputMethodService", "Bluetooth SCO connected");
+                        if (isScoConnecting || isRecordingAttempted) {
+                            isUsingBluetoothRoute = true;
+                            isScoConnecting = false;
+                            proceedWithRecordingSetup(); // jetzt Recorder starten
+                        }
+                    } else if (scoState == AudioManager.SCO_AUDIO_STATE_DISCONNECTED
+                            || scoState == AudioManager.SCO_AUDIO_STATE_ERROR) {
+                        Log.d("DictateInputMethodService", "SCO disconnected/error");
+                        if (isScoConnecting) {
+                            // Fallback, falls wir noch auf Connect warteten
+                            isScoConnecting = false;
+                            isUsingBluetoothRoute = false;
+                            proceedWithRecordingSetup();
+                        }
+                        // läuft bereits? -> wir nehmen einfach über Gerätemikro weiter auf
+                    }
+                    break;
             }
         }
     };
 
-    private boolean isBluetoothScoAvailable()
-    {
-        AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
-        return audioManager != null && audioManager.isBluetoothScoAvailableOffCall();
+    // New: Method to register the Bluetooth receiver
+    private void registerBluetoothReceiver() {
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(BluetoothHeadset.ACTION_CONNECTION_STATE_CHANGED);
+        filter.addAction(AudioManager.ACTION_SCO_AUDIO_STATE_UPDATED);
+        registerReceiver(bluetoothStateReceiver, filter);
     }
 
-    private void startBluetoothSco()
-    {
-        AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
-        if (audioManager != null) {
-            audioManager.startBluetoothSco();
-            audioManager.setBluetoothScoOn(true);
+    // New: Method to check initial Bluetooth state
+    @SuppressLint("MissingPermission")
+    private void checkInitialBluetoothState() {
+        if (bluetoothAdapter == null || !bluetoothAdapter.isEnabled()) {
+            isBluetoothHeadsetConnected = false;
+            updateRecordButtonIcon();
+            return;
         }
-        isBluetoothScoStarted = true;
+        bluetoothAdapter.getProfileProxy(this, new BluetoothProfile.ServiceListener() {
+            @Override public void onServiceConnected(int profile, BluetoothProfile proxy) {
+                if (profile == BluetoothProfile.HEADSET) {
+                    bluetoothHeadset = (BluetoothHeadset) proxy;
+                    try {
+                        isBluetoothHeadsetConnected = !bluetoothHeadset.getConnectedDevices().isEmpty();
+                    } catch (SecurityException se) {
+                        Log.w("DictateInputMethodService","BLUETOOTH_CONNECT missing/denied", se);
+                        isBluetoothHeadsetConnected = false;
+                    }
+                    if (mainHandler != null) mainHandler.post(() -> updateRecordButtonIcon());
+                }
+            }
+            @Override public void onServiceDisconnected(int profile) {
+                if (profile == BluetoothProfile.HEADSET) bluetoothHeadset = null;
+            }
+        }, BluetoothProfile.HEADSET);
     }
 
-    private void stopBluetoothSco()
-    {
-        AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
-        if (audioManager != null) {
-            audioManager.stopBluetoothSco();
-            audioManager.setBluetoothScoOn(false);
+
+    private void startBluetoothSco() {
+        if (am != null) {
+            Log.d("DictateInputMethodService", "Starting Bluetooth SCO");
+            am.startBluetoothSco();
         }
-        isBluetoothScoStarted = false;
+    }
+
+    private void stopBluetoothSco() {
+        if (am != null) {
+            try {
+                am.stopBluetoothSco();
+            }
+            catch (Exception ignore) {}
+
+            Log.d("DictateInputMethodService", "Stopping Bluetooth SCO");
+        }
+    }
+
+    private void updateRecordButtonIcon()
+    {
+        if (recordButton != null) {
+            if (isBluetoothHeadsetConnected) {
+                // Show Bluetooth icon on the left side of the text
+                recordButton.setCompoundDrawablesRelativeWithIntrinsicBounds(
+                        R.drawable.ic_baseline_bluetooth_24, 0, R.drawable.ic_baseline_folder_open_20, 0);
+            } else {
+                // Show default mic icon on the left side of the text
+                recordButton.setCompoundDrawablesRelativeWithIntrinsicBounds(
+                        R.drawable.ic_baseline_mic_20, 0, R.drawable.ic_baseline_folder_open_20, 0);
+            }
+        }
     }
 
 }

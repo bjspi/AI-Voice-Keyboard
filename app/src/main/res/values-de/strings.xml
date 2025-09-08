@@ -63,6 +63,7 @@
     <string name="dictate_microphone_permission_denied">Mikrofon Berechtigung abgelehnt ❌.</string>
     <string name="dictate_record">Aufnehmen</string>
     <string name="dictate_send">Senden (%1$s)</string>
+    <string name="dictate_connecting">BT verbinden</string>
     <string name="dictate_sending">Sendet …</string>
     <string name="dictate_timeout_msg">Timeout überschritten. Vielleicht ist OpenAI überlastet oder du hast eine langsame Internetverbindung.</string>
     <string name="dictate_invalid_api_key_msg">Ungültiger API-Schlüssel. Einstellungen öffnen, um ihn zu korrigieren?</string>
