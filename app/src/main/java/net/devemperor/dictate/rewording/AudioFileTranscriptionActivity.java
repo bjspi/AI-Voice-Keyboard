@@ -44,9 +44,16 @@ import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.time.Duration;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+import net.devemperor.dictate.rewording.PromptModel;
+import net.devemperor.dictate.rewording.PromptsDatabaseHelper;
+import net.devemperor.dictate.rewording.PromptsKeyboardAdapter;
 
 public class AudioFileTranscriptionActivity extends AppCompatActivity {
 
@@ -62,6 +69,11 @@ public class AudioFileTranscriptionActivity extends AppCompatActivity {
     private ExecutorService transcriptionThread;
     private String transcriptionResult = "";
     private boolean vibrationEnabled = true;
+
+    private RecyclerView promptsRv;
+    private PromptsKeyboardAdapter promptsAdapter;
+    private PromptsDatabaseHelper promptsDb;
+    private ExecutorService rewordingApiThread;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -85,6 +97,32 @@ public class AudioFileTranscriptionActivity extends AppCompatActivity {
         usageDb = new UsageDatabaseHelper(this);
         vibrator = (Vibrator) getSystemService(VIBRATOR_SERVICE);
         vibrationEnabled = sp.getBoolean("net.devemperor.dictate.vibration", true);
+
+        // Initialize prompts RecyclerView
+        promptsRv = findViewById(R.id.audio_file_transcription_prompts_rv);
+        promptsRv.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
+
+        promptsDb = new PromptsDatabaseHelper(this);
+        List<PromptModel> prompts = promptsDb.getAll(true); // true to include instant prompts, we'll filter -1 later
+
+        // Filter out prompt with ID -1 (Instant Prompt)
+        List<PromptModel> filteredPrompts = new java.util.ArrayList<>();
+        for (PromptModel model : prompts) {
+            if (model.getId() != -1) {
+                filteredPrompts.add(model);
+            }
+        }
+
+        promptsAdapter = new PromptsKeyboardAdapter(filteredPrompts, position -> {
+            // Handle prompt button click
+            PromptModel clickedPrompt = filteredPrompts.get(position);
+            rephraseTranscription(clickedPrompt);
+        }, position -> {
+            // Long press - not needed for this feature, but required by adapter constructor
+        }, position -> {
+            // Double click - not needed for this feature, but required by adapter constructor
+        });
+        promptsRv.setAdapter(promptsAdapter);
 
         // Set up button listeners
         copyBtn.setOnClickListener(v -> copyTranscriptionToClipboard());
@@ -330,11 +368,74 @@ public class AudioFileTranscriptionActivity extends AppCompatActivity {
         }
     }
 
+    private void rephraseTranscription(PromptModel promptModel) {
+        String currentTranscription = transcriptionResultTv.getText().toString();
+        if (currentTranscription.isEmpty()) {
+            Toast.makeText(this, R.string.dictate_no_text_to_rephrase, Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Show loading UI
+        transcriptionPb.setVisibility(View.VISIBLE);
+        transcriptionResultTv.setText(R.string.dictate_rephrasing); // Or a more specific message
+        copyBtn.setVisibility(View.GONE);
+        closeBtn.setVisibility(View.GONE);
+        promptsRv.setVisibility(View.GONE); // Hide prompts during rephrasing
+
+        // Start rephrasing in background thread
+        if (rewordingApiThread != null && !rewordingApiThread.isShutdown()) {
+            rewordingApiThread.shutdownNow();
+        }
+        rewordingApiThread = Executors.newSingleThreadExecutor();
+        rewordingApiThread.execute(() -> {
+            try {
+                String rephrasedText = DictateInputMethodService.performRewording(
+                        AudioFileTranscriptionActivity.this, // Context
+                        promptModel,
+                        currentTranscription,
+                        usageDb // Pass usageDb for tracking
+                );
+
+                transcriptionResult = rephrasedText; // Update the activity's transcriptionResult
+                runOnUiThread(() -> {
+                    transcriptionPb.setVisibility(View.GONE);
+                    transcriptionResultTv.setText(rephrasedText);
+                    copyBtn.setVisibility(View.VISIBLE);
+                    closeBtn.setVisibility(View.VISIBLE);
+                    promptsRv.setVisibility(View.VISIBLE); // Show prompts again
+                    if (vibrationEnabled) {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                            vibrator.vibrate(VibrationEffect.createPredefined(VibrationEffect.EFFECT_TICK));
+                        } else {
+                            vibrator.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE));
+                        }
+                    }
+                });
+
+            } catch (Exception e) {
+                Log.e(TAG, "Error rephrasing text", e);
+                runOnUiThread(() -> {
+                    transcriptionResultTv.setText(getString(R.string.dictate_rephrasing_error, e.getMessage()));
+                    transcriptionPb.setVisibility(View.GONE);
+                    copyBtn.setVisibility(View.VISIBLE);
+                    closeBtn.setVisibility(View.VISIBLE);
+                    promptsRv.setVisibility(View.VISIBLE); // Show prompts again
+                    if (vibrationEnabled) {
+                        vibrator.vibrate(VibrationEffect.createOneShot(300, VibrationEffect.DEFAULT_AMPLITUDE));
+                    }
+                });
+            }
+        });
+    }
+
     @Override
     protected void onDestroy() {
         super.onDestroy();
         if (transcriptionThread != null && !transcriptionThread.isShutdown()) {
             transcriptionThread.shutdownNow();
+        }
+        if (rewordingApiThread != null && !rewordingApiThread.isShutdown()) {
+            rewordingApiThread.shutdownNow();
         }
         if (usageDb != null) usageDb.close();
     }

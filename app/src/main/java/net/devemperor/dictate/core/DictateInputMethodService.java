@@ -1373,75 +1373,9 @@ public class DictateInputMethodService extends InputMethodService {
         rewordingApiThread = Executors.newSingleThreadExecutor();
         rewordingApiThread.execute(() -> {
             try {
-                int rewordingProvider = sp.getInt("net.devemperor.dictate.rewording_provider", 0);
-                String apiHost = getResources().getStringArray(R.array.dictate_api_providers_values)[rewordingProvider];
-                if (apiHost.equals("custom_server")) apiHost = sp.getString("net.devemperor.dictate.rewording_custom_host", getString(R.string.dictate_custom_server_host_hint));
-
-                String apiKey = sp.getString("net.devemperor.dictate.rewording_api_key", sp.getString("net.devemperor.dictate.api_key", "NO_API_KEY")).replaceAll("[^ -~]", "");
-                String proxyHost = sp.getString("net.devemperor.dictate.proxy_host", getString(R.string.dictate_settings_proxy_hint));
-
-                String rewordingModel = "";
-                switch (rewordingProvider) {
-                    case 0: rewordingModel = sp.getString("net.devemperor.dictate.rewording_openai_model", sp.getString("net.devemperor.dictate.rewording_model", "gpt-4o-mini")); break;
-                    case 1: rewordingModel = sp.getString("net.devemperor.dictate.rewording_groq_model", "llama-3.3-70b-versatile"); break;
-                    case 2: rewordingModel = sp.getString("net.devemperor.dictate.rewording_custom_model", getString(R.string.dictate_custom_rewording_model_hint));
-                }
-
-                OpenAIOkHttpClient.Builder clientBuilder = OpenAIOkHttpClient.builder()
-                        .apiKey(apiKey)
-                        .baseUrl(apiHost)
-                        .timeout(Duration.ofSeconds(120));
-
-                if (sp.getBoolean("net.devemperor.dictate.proxy_enabled", false)) {
-                    clientBuilder.proxy(new Proxy(Proxy.Type.HTTP, new InetSocketAddress(proxyHost.split(":")[0], Integer.parseInt(proxyHost.split(":")[1]))));
-                }
-
-                String prompt = model.getPrompt();
-                String rewordedText;
-                if (prompt.startsWith("[") && prompt.endsWith("]")) {
-                    rewordedText = prompt.substring(1, prompt.length() - 1);
-                }
-                else
-                {
-                    ChatCompletionCreateParams.Builder chatCompletionBuilder = ChatCompletionCreateParams.builder().model(rewordingModel);
-
-                    // Logging für die API-Anfrage (ohne API-Key)
-                    Log.d("DictateAPI", "Rewording-Request - URL: " + apiHost + ", Modell: " + rewordingModel);
-
-                    if (sp.getBoolean("net.devemperor.dictate.use_prompt_as_system_prompt", false)) {
-                        chatCompletionBuilder.addSystemMessage(prompt);
-                        Log.d("DictateAPI", "System-Prompt configured / added: " + prompt);
-                        if (selectedText != null) {
-                            Log.d("DictateAPI", "User-Message added: " + selectedText.substring(0, Math.min(selectedText.length(), 100)) + (selectedText.length() > 100 ? "..." : ""));
-                            chatCompletionBuilder.addUserMessage(selectedText);
-                        }
-                    } else {
-
-                        prompt += "\n\n";
-                        if (selectedText != null) {
-                            prompt += "\n\n" + selectedText;
-                        }
-                        Log.d("DictateAPI", "Everything as User-Message configured / added: " + prompt.substring(0, Math.min(prompt.length(), 100)) + (prompt.length() > 100 ? "..." : ""));
-                        chatCompletionBuilder.addUserMessage(prompt);
-                    }
-
-
-
-                    ChatCompletionCreateParams chatCompletionCreateParams = chatCompletionBuilder.build();
-                    ChatCompletion chatCompletion = clientBuilder.build().chat().completions().create(chatCompletionCreateParams);
-                    rewordedText = chatCompletion.choices().get(0).message().content().orElse("");
-
-                    // Logging der Antwort (ohne API-Key)
-                    Log.d("DictateAPI", "Rewording-Antwort erhalten: " + rewordedText);
-
-                    if (chatCompletion.usage().isPresent()) {
-                        usageDb.edit(rewordingModel, 0, chatCompletion.usage().get().promptTokens(), chatCompletion.usage().get().completionTokens(), rewordingProvider);
-                    }
-                }
-
+                String rewordedText = performRewording(DictateInputMethodService.this, model, selectedText, usageDb);
                 outputText(rewordedText, shouldSwitchImeAfterTranscription);
-
-            } catch (RuntimeException e) {
+            } catch (Exception e) {
                 // Detailliertes Logging des Fehlers
                 Log.e("DictateAPI", "Error during Rewording Request", e);
 
@@ -1462,7 +1396,6 @@ public class DictateInputMethodService extends InputMethodService {
                                 Log.e("DictateAPI", "Quota überschritten");
                                 showInfo("quota_exceeded");
                             } else {
-                                Log.e("DictateAPI", "Allgemeiner Internetfehler");
                                 showInfo("internet_error");
                             }
                         });
@@ -1921,6 +1854,66 @@ public class DictateInputMethodService extends InputMethodService {
         usageDb.edit(transcriptionModel, DictateUtils.getAudioDuration(audioFile), 0, 0, transcriptionProvider);
 
         return resultText;
+    }
+
+    public static String performRewording(Context context, PromptModel model, String textToReword, UsageDatabaseHelper usageDb) throws Exception {
+        SharedPreferences sp = context.getSharedPreferences("net.devemperor.dictate", Context.MODE_PRIVATE);
+
+        int rewordingProvider = sp.getInt("net.devemperor.dictate.rewording_provider", 0);
+        String apiHost = context.getResources().getStringArray(R.array.dictate_api_providers_values)[rewordingProvider];
+        if (apiHost.equals("custom_server")) apiHost = sp.getString("net.devemperor.dictate.rewording_custom_host", context.getString(R.string.dictate_custom_server_host_hint));
+
+        String apiKey = sp.getString("net.devemperor.dictate.rewording_api_key", sp.getString("net.devemperor.dictate.api_key", "NO_API_KEY")).replaceAll("[^ -~]", "");
+        String proxyHost = sp.getString("net.devemperor.dictate.proxy_host", context.getString(R.string.dictate_settings_proxy_hint));
+
+        String rewordingModel = "";
+        switch (rewordingProvider) {
+            case 0: rewordingModel = sp.getString("net.devemperor.dictate.rewording_openai_model", sp.getString("net.devemperor.dictate.rewording_model", "gpt-4o-mini")); break;
+            case 1: rewordingModel = sp.getString("net.devemperor.dictate.rewording_groq_model", "llama-3.3-70b-versatile"); break;
+            case 2: rewordingModel = sp.getString("net.devemperor.dictate.rewording_custom_model", context.getString(R.string.dictate_custom_rewording_model_hint));
+        }
+
+        OpenAIOkHttpClient.Builder clientBuilder = OpenAIOkHttpClient.builder()
+                .apiKey(apiKey)
+                .baseUrl(apiHost)
+                .timeout(Duration.ofSeconds(120));
+
+        if (sp.getBoolean("net.devemperor.dictate.proxy_enabled", false)) {
+            clientBuilder.proxy(new Proxy(Proxy.Type.HTTP, new InetSocketAddress(proxyHost.split(":")[0], Integer.parseInt(proxyHost.split(":")[1]))));
+        }
+
+        String prompt = model.getPrompt();
+        String rewordedText;
+        if (prompt.startsWith("[") && prompt.endsWith("]")) {
+            rewordedText = prompt.substring(1, prompt.length() - 1);
+        }
+        else
+        {
+            ChatCompletionCreateParams.Builder chatCompletionBuilder = ChatCompletionCreateParams.builder().model(rewordingModel);
+
+            Log.d("DictateAPI", "Rewording-Request - URL: " + apiHost + ", Modell: " + rewordingModel);
+
+            if (sp.getBoolean("net.devemperor.dictate.use_prompt_as_system_prompt", false)) {
+                chatCompletionBuilder.addSystemMessage(prompt);
+                Log.d("DictateAPI", "System-Prompt configured / added: " + prompt);
+                Log.d("DictateAPI", "User-Message added: " + textToReword.substring(0, Math.min(textToReword.length(), 100)) + (textToReword.length() > 100 ? "..." : ""));
+                chatCompletionBuilder.addUserMessage(textToReword);
+            } else {
+                prompt += "\n\n";
+                prompt += "\n\n" + textToReword;
+                Log.d("DictateAPI", "Everything as User-Message configured / added: " + prompt.substring(0, Math.min(prompt.length(), 100)) + (prompt.length() > 100 ? "..." : ""));
+                chatCompletionBuilder.addUserMessage(prompt);
+            }
+
+            ChatCompletionCreateParams chatCompletionCreateParams = chatCompletionBuilder.build();
+            ChatCompletion chatCompletion = clientBuilder.build().chat().completions().create(chatCompletionCreateParams);
+            rewordedText = chatCompletion.choices().get(0).message().content().orElse("");
+
+            if (chatCompletion.usage().isPresent()) {
+                usageDb.edit(rewordingModel, 0, chatCompletion.usage().get().promptTokens(), chatCompletion.usage().get().completionTokens(), rewordingProvider);
+            }
+        }
+        return rewordedText;
     }
 
     @Override

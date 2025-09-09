@@ -249,4 +249,7 @@
     <string name="dictate_transcription">Transcription</string>
     <string name="dictate_settings_use_prompt_as_system_prompt_title">Use as system prompt</string>
     <string name="dictate_settings_use_prompt_as_system_prompt_summary">Use rewording prompt presets as a system prompt instead of concatenating them into the user message</string>
+    <string name="dictate_no_text_to_rephrase">No text to rephrase.</string>
+    <string name="dictate_rephrasing">Rephrasing…</string>
+    <string name="dictate_rephrasing_error">Rephrasing error: %1$s</string>
 </resources>

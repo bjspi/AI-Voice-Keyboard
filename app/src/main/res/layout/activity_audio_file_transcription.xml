@@ -33,11 +33,11 @@
         app:layout_constraintTop_toBottomOf="@+id/audio_file_transcription_title_tv" />
 
     <ScrollView
+        android:id="@+id/audio_file_transcription_scrollview"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:layout_marginTop="16dp"
-        android:layout_marginBottom="16dp"
-        app:layout_constraintBottom_toTopOf="@+id/audio_file_transcription_buttons_ll"
+        app:layout_constraintBottom_toTopOf="@+id/audio_file_transcription_prompts_rv"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/audio_file_transcription_pb">
@@ -53,6 +53,19 @@
             android:textSize="16sp" />
 
     </ScrollView>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/audio_file_transcription_prompts_rv"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="16dp"
+        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+        app:layout_constraintBottom_toTopOf="@+id/audio_file_transcription_buttons_ll"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/audio_file_transcription_scrollview"
+        tools:listitem="@layout/item_prompt_button" />
 
     <LinearLayout
         android:id="@+id/audio_file_transcription_buttons_ll"
