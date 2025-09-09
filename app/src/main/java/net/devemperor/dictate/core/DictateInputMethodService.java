@@ -2025,7 +2025,6 @@ public class DictateInputMethodService extends InputMethodService {
         }, BluetoothProfile.HEADSET);
     }
 
-
     private void startBluetoothSco() {
         if (am != null) {
             Log.d("DictateInputMethodService", "Starting Bluetooth SCO");
@@ -2039,15 +2038,15 @@ public class DictateInputMethodService extends InputMethodService {
                 am.stopBluetoothSco();
             }
             catch (Exception ignore) {}
-
             Log.d("DictateInputMethodService", "Stopping Bluetooth SCO");
         }
     }
 
     private void updateRecordButtonIcon()
     {
+        final boolean useBluetoothMicPref = sp.getBoolean("net.devemperor.dictate.use_bluetooth_mic", true);
         if (recordButton != null) {
-            if (isBluetoothHeadsetConnected) {
+            if (isBluetoothHeadsetConnected && useBluetoothMicPref) {
                 // Show Bluetooth icon on the left side of the text
                 recordButton.setCompoundDrawablesRelativeWithIntrinsicBounds(
                         R.drawable.ic_baseline_bluetooth_24, 0, R.drawable.ic_baseline_folder_open_20, 0);
