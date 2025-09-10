@@ -869,7 +869,7 @@ public class DictateInputMethodService extends InputMethodService {
                         if (selectedTextForPrompt != null) {
                             // Text is selected, use it as the transcript and send to GPT
                             // This skips the recording process
-                            startGPTApiRequest(new PromptModel(-1, Integer.MIN_VALUE, "", selectedTextForPrompt, false), null);
+                            startGPTApiRequest(new PromptModel(-1, Integer.MIN_VALUE, "", "You are a helpful assistant", false), selectedTextForPrompt);
                         } else {
                             // No text selected, start/stop recording as before
                             instantPrompt = true;
@@ -1293,7 +1293,7 @@ public class DictateInputMethodService extends InputMethodService {
                     instantPrompt = false;
                     // Get selected text for instant prompt
                     String selectedText = getUsersTextSelection(true);
-                    startGPTApiRequest(new PromptModel(-1, Integer.MIN_VALUE, "", resultText, false), selectedText);
+                    startGPTApiRequest(new PromptModel(-1, Integer.MIN_VALUE, "", "You are a helpful assistant.", false), resultText);
                 }
 
                 if (getLastAudioFile().exists()
@@ -1890,11 +1890,6 @@ public class DictateInputMethodService extends InputMethodService {
         }
         else
         {
-            if(model.getId() == -1) {
-                prompt = "You are a helpful assistant. Follow the user's instructions carefully and output a text in the language of the User message.";
-                textToReword = model.getPrompt();
-            }
-
             ChatCompletionCreateParams.Builder chatCompletionBuilder = ChatCompletionCreateParams.builder().model(rewordingModel);
 
             Log.d("DictateAPI", "Rewording-Request - URL: " + apiHost + ", Modell: " + rewordingModel);
