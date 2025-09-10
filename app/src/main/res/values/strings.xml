@@ -252,4 +252,5 @@
     <string name="dictate_no_text_to_rephrase">No text to rephrase.</string>
     <string name="dictate_rephrasing">Rephrasing…</string>
     <string name="dictate_rephrasing_error">Rephrasing error: %1$s</string>
+    <string name="error_rewording_request">Error during rewording request.</string>
 </resources>

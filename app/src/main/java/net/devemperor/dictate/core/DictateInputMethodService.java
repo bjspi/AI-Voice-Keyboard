@@ -38,6 +38,7 @@ import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.appcompat.content.res.AppCompatResources;
 import androidx.constraintlayout.widget.ConstraintLayout;
@@ -1889,19 +1890,35 @@ public class DictateInputMethodService extends InputMethodService {
         }
         else
         {
+            if(model.getId() == -1) {
+                prompt = "You are a helpful assistant. Follow the user's instructions carefully and output a text in the language of the User message.";
+                textToReword = model.getPrompt();
+            }
+
             ChatCompletionCreateParams.Builder chatCompletionBuilder = ChatCompletionCreateParams.builder().model(rewordingModel);
 
             Log.d("DictateAPI", "Rewording-Request - URL: " + apiHost + ", Modell: " + rewordingModel);
 
             if (sp.getBoolean("net.devemperor.dictate.use_prompt_as_system_prompt", false)) {
                 chatCompletionBuilder.addSystemMessage(prompt);
-                Log.d("DictateAPI", "System-Prompt configured / added: " + prompt);
-                Log.d("DictateAPI", "User-Message added: " + textToReword.substring(0, Math.min(textToReword.length(), 100)) + (textToReword.length() > 100 ? "..." : ""));
+
+                try {
+                    Log.d("DictateAPI", "System-Prompt configured / added: " + prompt);
+                    Log.d("DictateAPI", "User-Message added: " + textToReword.substring(0, Math.min(textToReword.length(), 100)) + (textToReword.length() > 100 ? "..." : ""));
+                } catch (Exception e) {
+                    //Log.e("DictateAPI", "Fehler beim Hinzufügen von System-Prompt oder User-Message", e);
+                }
+
                 chatCompletionBuilder.addUserMessage(textToReword);
             } else {
                 prompt += "\n\n";
                 prompt += "\n\n" + textToReword;
-                Log.d("DictateAPI", "Everything as User-Message configured / added: " + prompt.substring(0, Math.min(prompt.length(), 100)) + (prompt.length() > 100 ? "..." : ""));
+                try {
+                    Log.d("DictateAPI", "Everything as User-Message configured / added: " + prompt.substring(0, Math.min(prompt.length(), 100)) + (prompt.length() > 100 ? "..." : ""));
+                } catch (Exception e) {
+                    //Log.e("DictateAPI", "Fehler beim Hinzufügen von System-Prompt oder User-Message", e);
+                }
+
                 chatCompletionBuilder.addUserMessage(prompt);
             }
 
