@@ -965,7 +965,7 @@ public class DictateInputMethodService extends InputMethodService {
 
             // enable resend button if previous audio file still exists in cache
             if (getLastAudioFile().exists()
-                    && sp.getBoolean("net.devemperor.dictate.resend_button", false)) {
+                    && sp.getBoolean("net.devemperor.dictate.resend_button", false) && !isRecording) {
                 resendButton.setVisibility(View.VISIBLE);
             } else {
                 resendButton.setVisibility(View.GONE);
@@ -1299,7 +1299,7 @@ public class DictateInputMethodService extends InputMethodService {
                 }
 
                 if (getLastAudioFile().exists()
-                        && sp.getBoolean("net.devemperor.dictate.resend_button", false)) {
+                        && sp.getBoolean("net.devemperor.dictate.resend_button", false) && !isRecording) {
                     mainHandler.post(() -> resendButton.setVisibility(View.VISIBLE));
                 }
 
@@ -1313,7 +1313,7 @@ public class DictateInputMethodService extends InputMethodService {
                     // Performance-Optimierung: Prüfung auf null bevor post aufgerufen wird
                     if (mainHandler != null) {
                         mainHandler.post(() -> {
-                            resendButton.setVisibility(View.VISIBLE);
+                            if (!isRecording) resendButton.setVisibility(View.VISIBLE);
                             String message = Objects.requireNonNull(e.getMessage()).toLowerCase();
                             Log.e("DictateAPI", "Fehlermeldung: " + message);
 
@@ -1388,7 +1388,7 @@ public class DictateInputMethodService extends InputMethodService {
                     // Performance-Optimierung: Prüfung auf null bevor post aufgerufen wird
                     if (mainHandler != null) {
                         mainHandler.post(() -> {
-                            resendButton.setVisibility(View.VISIBLE);
+                            if (!isRecording) resendButton.setVisibility(View.VISIBLE);
                             String message = Objects.requireNonNull(e.getMessage()).toLowerCase();
                             Log.e("DictateAPI", "Error: " + message);
 
