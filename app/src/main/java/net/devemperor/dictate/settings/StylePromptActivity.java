@@ -27,6 +27,7 @@ public class StylePromptActivity extends AppCompatActivity {
     private RadioButton predefinedRb;
     private RadioButton customRb;
     private EditText customEt;
+    private EditText instantPromptEt;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -50,10 +51,12 @@ public class StylePromptActivity extends AppCompatActivity {
         predefinedRb = findViewById(R.id.style_prompt_predefined_rb);
         customRb = findViewById(R.id.style_prompt_custom_rb);
         customEt = findViewById(R.id.style_prompt_custom_et);
+        instantPromptEt = findViewById(R.id.instant_prompt_et);
         ImageView helpIv = findViewById(R.id.style_prompt_help_iv);
 
         changeSelection(sp.getInt("net.devemperor.dictate.style_prompt_selection", 1));
         customEt.setText(sp.getString("net.devemperor.dictate.style_prompt_custom_text", ""));
+        instantPromptEt.setText(sp.getString("net.devemperor.dictate.instant_prompt", getString(R.string.dictate_instant_prompt_default_value)));
 
         nothingRb.setOnCheckedChangeListener((buttonView, isChecked) -> {
             if (isChecked) changeSelection(0);
@@ -76,6 +79,13 @@ public class StylePromptActivity extends AppCompatActivity {
             @Override
             public void afterTextChanged(Editable s) {
                 sp.edit().putString("net.devemperor.dictate.style_prompt_custom_text", s.toString()).apply();
+            }
+        });
+
+        instantPromptEt.addTextChangedListener(new SimpleTextWatcher() {
+            @Override
+            public void afterTextChanged(Editable s) {
+                sp.edit().putString("net.devemperor.dictate.instant_prompt", s.toString()).apply();
             }
         });
     }

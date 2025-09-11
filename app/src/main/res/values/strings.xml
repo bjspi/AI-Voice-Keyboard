@@ -253,4 +253,7 @@
     <string name="dictate_rephrasing">Rephrasing…</string>
     <string name="dictate_rephrasing_error">Rephrasing error: %1$s</string>
     <string name="error_rewording_request">Error during rewording request.</string>
+    <string name="dictate_instant_prompt_title">System-Prompt für Instant Prompting</string>
+    <string name="dictate_instant_prompt_hint">Enter system prompt here</string>
+    <string name="dictate_instant_prompt_default_value">You are a helpful assistant. Always respond only with the direct answer to the user’s prompt, without introductions, disclaimers, or closing remarks. Do not add any filler words or meta-commentary. Write your response strictly in the language that matches the majority of the user’s input text. If the user writes mostly in German, respond in German. If the user writes mostly in English, respond in English. Always prioritize clarity, conciseness, and helpfulness.</string>
 </resources>

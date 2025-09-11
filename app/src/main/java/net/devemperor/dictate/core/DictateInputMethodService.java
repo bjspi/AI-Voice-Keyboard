@@ -87,6 +87,8 @@ import java.util.concurrent.Executors;
 // MAIN CLASS
 public class DictateInputMethodService extends InputMethodService {
 
+    public static String INSTANT_PROMPT;
+
     // define handlers and runnables for background tasks
     private Handler mainHandler;
     private Handler deleteHandler;
@@ -869,7 +871,7 @@ public class DictateInputMethodService extends InputMethodService {
                         if (selectedTextForPrompt != null) {
                             // Text is selected, use it as the transcript and send to GPT
                             // This skips the recording process
-                            startGPTApiRequest(new PromptModel(-1, Integer.MIN_VALUE, "", "You are a helpful assistant", false), selectedTextForPrompt);
+                            startGPTApiRequest(new PromptModel(-1, Integer.MIN_VALUE, "", INSTANT_PROMPT, false), selectedTextForPrompt);
                         } else {
                             // No text selected, start/stop recording as before
                             instantPrompt = true;
@@ -1293,7 +1295,7 @@ public class DictateInputMethodService extends InputMethodService {
                     instantPrompt = false;
                     // Get selected text for instant prompt
                     String selectedText = getUsersTextSelection(true);
-                    startGPTApiRequest(new PromptModel(-1, Integer.MIN_VALUE, "", "You are a helpful assistant.", false), resultText);
+                    startGPTApiRequest(new PromptModel(-1, Integer.MIN_VALUE, "", INSTANT_PROMPT, false), resultText);
                 }
 
                 if (getLastAudioFile().exists()
@@ -1931,6 +1933,9 @@ public class DictateInputMethodService extends InputMethodService {
     @Override
     public void onCreate() {
         super.onCreate();
+
+        sp = getSharedPreferences("net.devemperor.dictate", MODE_PRIVATE);
+        INSTANT_PROMPT = sp.getString("net.devemperor.dictate.instant_prompt", getString(R.string.dictate_instant_prompt_default_value));
 
         // Initiliaze BluetoothAdapter
         bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
