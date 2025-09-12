@@ -263,6 +263,7 @@ public class DictateInputMethodService extends InputMethodService {
                 if (!stopButton.getText().equals(newText)) {
                     stopButton.setText(newText);
                 }
+
                 // Performance-Optimierung: Prüfung auf null bevor postDelayed aufgerufen wird
                 if (recordTimeHandler != null) {
                     recordTimeHandler.postDelayed(this, 100);
