@@ -183,7 +183,16 @@ public class PromptsDatabaseHelper extends SQLiteOpenHelper {
         List<PromptModel> models = new ArrayList<>();
         if (cursor.moveToFirst()) {
             do {
-                models.add(new PromptModel(cursor.getInt(0), cursor.getInt(1), cursor.getString(2), cursor.getString(3), cursor.getInt(4) == 1, cursor.getInt(5) == 1));
+                models.add(
+                        new PromptModel(
+                                cursor.getInt(0),
+                                cursor.getInt(1),
+                                cursor.getString(2),
+                                cursor.getString(3),
+                                cursor.getInt(4) == 1,
+                                cursor.getInt(5) == 1,
+                                cursor.getInt(6) == 1
+                        ));
             } while (cursor.moveToNext());
         }
         cursor.close();

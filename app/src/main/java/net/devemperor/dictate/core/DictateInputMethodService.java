@@ -52,6 +52,8 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 //import com.google.firebase.crashlytics.FirebaseCrashlytics;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.openai.client.okhttp.OpenAIOkHttpClient;
 import com.openai.models.audio.AudioResponseFormat;
 import com.openai.models.audio.transcriptions.Transcription;
@@ -869,12 +871,17 @@ public class DictateInputMethodService extends InputMethodService {
                 // Improve text selection detection
 
                 // No text selected, show all instant prompts and set select all icon
-                data = promptsDb.getAll(true);
+                data = promptsDb.getAll();
                 editSelectAllButton.setForeground(AppCompatResources.getDrawable(this, R.drawable.ic_baseline_select_all_24));
 
                 promptsAdapter = new PromptsKeyboardAdapter(data, position -> {
                     vibrate();
                     PromptModel model = data.get(position);
+
+                    // Log PromptModel obj as JSON with ALL attributes and values:
+                    Gson gson = new GsonBuilder().setPrettyPrinting().create();
+                    String json = gson.toJson(model);
+                    Log.d("DictateInputMethodService", "Prompt button clicked: " + json);
 
                     if (model.getId() == -1) {  // instant prompt clicked
                         String selectedTextForPrompt = getUsersTextSelection(true);
@@ -921,10 +928,14 @@ public class DictateInputMethodService extends InputMethodService {
                             }
                         }
 
-                        // If still no text is selected after trying to select all, abort the operation
+                        // If the model requires a TEXTSELECTION and still no text is selected after trying to select all, abort the operation
+                        // But allow in case the model is configured to NOT require a textselection ...
                         if (selectedText == null || selectedText.isEmpty()) {
-                            // Abort the operation - don't call startGPTApiRequest
-                            return;
+                            if(model.requiresSelection())
+                                // Abort the operation - don't call startGPTApiRequest
+                                return;
+                            else
+                                selectedText = ""; // proceed with empty text
                         }
 
                         startGPTApiRequest(model, selectedText);  // another normal prompt clicked
@@ -1057,7 +1068,7 @@ public class DictateInputMethodService extends InputMethodService {
             List<PromptModel> data;
 
             // Always show all instant prompts even if no text is selected
-            data = promptsDb.getAll(true);
+            data = promptsDb.getAll();
             editSelectAllButton.setForeground(AppCompatResources.getDrawable(this, R.drawable.ic_baseline_select_all_24));
 
             promptsAdapter.getData().clear();
