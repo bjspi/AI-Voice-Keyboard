@@ -265,4 +265,5 @@
     <string name="dictate_accessibility_service_required">Accessibility Permissions required</string>
     <string name="dictate_accessibility_service_required_desc">For this function to work, you have to enable the Accessibility Permissions, so that the App can make Screenshots.</string>
     <string name="dictate_go_to_settings">Go to Accessibility Settings</string>
+    <string name="dictate_screenshot_failed">"Couldnt create a Screenshot as configured in the Rewording Prompt. Will not continue. "</string>
 </resources>

@@ -21,6 +21,7 @@ import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.media.MediaMetadataRetriever;
 import android.os.Build;
+import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
@@ -389,6 +390,7 @@ public class DictateUtils {
     public static String takeScreenshot(Context context) {
         DictateAccessibilityService service = DictateAccessibilityService.getInstance();
         if (service == null) {
+            Log.e("Dictate", "Accessibility service not found");
             return null;
         }
 

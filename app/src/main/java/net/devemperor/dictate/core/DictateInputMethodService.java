@@ -1051,7 +1051,7 @@ public class DictateInputMethodService extends InputMethodService {
         super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd);
 
         // refill all prompts
-        if (sp != null && sp.getBoolean("net.devemperor.dictate.rewording_enabled", true)) {
+        if (sp != null && sp.getBoolean("net.devemperor.dictate.rewording_enabled", true) && promptsDb != null && promptsAdapter != null) {
             List<PromptModel> data;
 
             // Always show all instant prompts even if no text is selected
@@ -1941,10 +1941,21 @@ public class DictateInputMethodService extends InputMethodService {
                 userMessage = prompt;
             }
 
+            Log.d("DictateAPI", "State vars: Screenshot = " + model.isSendScreenshot() + ", SDK min = " + (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R));
             if(model.isSendScreenshot() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R)
             {
+                Log.d("DictateAPI", "Taking screenshot as requested by prompt");
                 try {
                     String screenshotPath = DictateUtils.takeScreenshot(context);
+                    Log.d("DictateAPI", "Screenshot saved to: " + screenshotPath);
+                    if (screenshotPath == null || screenshotPath.isEmpty()) {
+                        new Handler(Looper.getMainLooper()).post(() ->
+                                android.widget.Toast.makeText(context.getApplicationContext(),
+                                        context.getString(R.string.dictate_screenshot_failed),
+                                        android.widget.Toast.LENGTH_SHORT).show()
+                        );
+                        return "";
+                    }
 
                     byte[] bytes = Files.readAllBytes(Paths.get(screenshotPath));
                     String b64 = Base64.encodeToString(bytes, Base64.NO_WRAP); // keine Zeilenumbrüche!
@@ -1957,6 +1968,7 @@ public class DictateInputMethodService extends InputMethodService {
                                             .build()
                             );
 
+                    Log.d("DictateAPI", "Screenshot Data-URL: " + dataUrl);
                     ChatCompletionContentPart imagePart = ChatCompletionContentPart.ofImageUrl(
                                     ChatCompletionContentPartImage.builder()
                                             .imageUrl(
