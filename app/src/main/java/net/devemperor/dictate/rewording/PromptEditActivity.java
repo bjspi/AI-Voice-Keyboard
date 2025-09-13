@@ -85,6 +85,26 @@ public class PromptEditActivity extends AppCompatActivity {
             }
         }
 
+        // When "SEND Screenshot" is checked, check Accessibility Service
+        promptSendScreenshotSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (isChecked && !isAccessibilityServiceEnabled()) {
+                new AlertDialog.Builder(this)
+                        .setTitle(R.string.dictate_accessibility_service_required)
+                        .setMessage(R.string.dictate_accessibility_service_required_desc)
+                        .setPositiveButton(R.string.dictate_go_to_settings, (dialog, which) -> {
+                            Intent intent = new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS);
+                            startActivity(intent);
+                        })
+                        .setNegativeButton(R.string.dictate_cancel, (dialog, which) -> {
+                            promptSendScreenshotSwitch.setChecked(false);
+                        })
+                        .setOnCancelListener(dialog -> {
+                            promptSendScreenshotSwitch.setChecked(false);
+                        })
+                        .show();
+           }
+        });
+
         // When "Always use" is checked, also check "Requires text selection"
         promptAlwaysUseSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
             if (isChecked) {

@@ -9,7 +9,9 @@ import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.LinearLayout;
+import android.widget.SeekBar;
 import android.widget.Spinner;
+import android.widget.TextView;
 
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.ActionBar;
@@ -35,6 +37,10 @@ public class APISettingsActivity extends AppCompatActivity {
     private Spinner rewordingModelSpn;
     private EditText rewordingCustomHostEt;
     private EditText rewordingCustomModelEt;
+    private SeekBar transcriptionTemperatureSb;
+    private TextView transcriptionTemperatureValueTv;
+    private SeekBar rewordingTemperatureSb;
+    private TextView rewordingTemperatureValueTv;
     private LinearLayout transcriptionCustomFieldsWrapper;
     private LinearLayout rewordingCustomFieldsWrapper;
 
@@ -44,12 +50,14 @@ public class APISettingsActivity extends AppCompatActivity {
     private String transcriptionAPIKey;
     private String transcriptionCustomHost;
     private String transcriptionCustomModel;
+    private float transcriptionTemperature;
     private int rewordingProvider;
     private String rewordingOpenAIModel;
     private String rewordingGroqModel;
     private String rewordingAPIKey;
     private String rewordingCustomHost;
     private String rewordingCustomModel;
+    private float rewordingTemperature;
 
     private ArrayAdapter<CharSequence> transcriptionModelOpenAIAdapter;
     private ArrayAdapter<CharSequence> transcriptionModelGroqAdapter;
@@ -86,6 +94,10 @@ public class APISettingsActivity extends AppCompatActivity {
         rewordingAPIKeyEt = findViewById(R.id.api_settings_rewording_api_key_et);
         rewordingCustomHostEt = findViewById(R.id.api_settings_rewording_custom_host_et);
         rewordingCustomModelEt = findViewById(R.id.api_settings_rewording_custom_model_et);
+        transcriptionTemperatureSb = findViewById(R.id.api_settings_transcription_temperature_sb);
+        transcriptionTemperatureValueTv = findViewById(R.id.api_settings_transcription_temperature_value_tv);
+        rewordingTemperatureSb = findViewById(R.id.api_settings_rewording_temperature_sb);
+        rewordingTemperatureValueTv = findViewById(R.id.api_settings_rewording_temperature_value_tv);
         transcriptionCustomFieldsWrapper = findViewById(R.id.api_settings_transcription_custom_fields_wrapper);
         rewordingCustomFieldsWrapper = findViewById(R.id.api_settings_rewording_custom_fields_wrapper);
 
@@ -97,6 +109,7 @@ public class APISettingsActivity extends AppCompatActivity {
         transcriptionAPIKey = sp.getString("net.devemperor.dictate.transcription_api_key", sp.getString("net.devemperor.dictate.api_key", ""));  // for upgrading: default is the old rewording API key
         transcriptionCustomHost = sp.getString("net.devemperor.dictate.transcription_custom_host", "");
         transcriptionCustomModel = sp.getString("net.devemperor.dictate.transcription_custom_model", "");
+        transcriptionTemperature = sp.getFloat("net.devemperor.dictate.transcription_temperature", 0.0f);
 
         transcriptionModelOpenAIAdapter = ArrayAdapter.createFromResource(this, R.array.dictate_transcription_models_openai, android.R.layout.simple_spinner_item);
         transcriptionModelOpenAIAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
@@ -162,6 +175,24 @@ public class APISettingsActivity extends AppCompatActivity {
             }
         });
 
+        transcriptionTemperatureSb.setProgress((int) (transcriptionTemperature * 100));
+        transcriptionTemperatureValueTv.setText(String.format("%.2f", transcriptionTemperature));
+        transcriptionTemperatureSb.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                transcriptionTemperature = progress / 100.0f;
+                transcriptionTemperatureValueTv.setText(String.format("%.2f", transcriptionTemperature));
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) { }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+                sp.edit().putFloat("net.devemperor.dictate.transcription_temperature", transcriptionTemperature).apply();
+            }
+        });
+
 
         // CONFIGURE REWORDING API SETTINGS
         rewordingProvider = sp.getInt("net.devemperor.dictate.rewording_provider", 0);
@@ -170,6 +201,7 @@ public class APISettingsActivity extends AppCompatActivity {
         rewordingAPIKey = sp.getString("net.devemperor.dictate.rewording_api_key", sp.getString("net.devemperor.dictate.api_key", ""));  // for upgrading: default is the old rewording API key
         rewordingCustomHost = sp.getString("net.devemperor.dictate.rewording_custom_host", "");
         rewordingCustomModel = sp.getString("net.devemperor.dictate.rewording_custom_model", "");
+        rewordingTemperature = sp.getFloat("net.devemperor.dictate.rewording_temperature", 0.7f);
 
         rewordingModelOpenAIAdapter = ArrayAdapter.createFromResource(this, R.array.dictate_rewording_models_openai, android.R.layout.simple_spinner_item);
         rewordingModelOpenAIAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
@@ -232,6 +264,24 @@ public class APISettingsActivity extends AppCompatActivity {
             @Override
             public void afterTextChanged(Editable editable) {
                 sp.edit().putString("net.devemperor.dictate.rewording_custom_model", editable.toString()).apply();
+            }
+        });
+
+        rewordingTemperatureSb.setProgress((int) (rewordingTemperature * 100));
+        rewordingTemperatureValueTv.setText(String.format("%.2f", rewordingTemperature));
+        rewordingTemperatureSb.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                rewordingTemperature = progress / 100.0f;
+                rewordingTemperatureValueTv.setText(String.format("%.2f", rewordingTemperature));
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) { }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+                sp.edit().putFloat("net.devemperor.dictate.rewording_temperature", rewordingTemperature).apply();
             }
         });
     }

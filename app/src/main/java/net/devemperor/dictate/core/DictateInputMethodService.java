@@ -1820,6 +1820,7 @@ public class DictateInputMethodService extends InputMethodService {
     public static String transcribeAudioFile(Context context, File audioFile, UsageDatabaseHelper usageDb, String language, String stylePrompt) {
         SharedPreferences sp = context.getSharedPreferences("net.devemperor.dictate", Context.MODE_PRIVATE);
 
+        float transcriptionTemperature = sp.getFloat("net.devemperor.dictate.transcription_temperature", 0.0f);
         int transcriptionProvider = sp.getInt("net.devemperor.dictate.transcription_provider", 0);
         String apiHost = context.getResources().getStringArray(R.array.dictate_api_providers_values)[transcriptionProvider];
         if (apiHost.equals("custom_server")) {
@@ -1844,18 +1845,22 @@ public class DictateInputMethodService extends InputMethodService {
         TranscriptionCreateParams.Builder transcriptionBuilder = TranscriptionCreateParams.builder()
                 .file(audioFile.toPath())
                 .model(transcriptionModel)
-                .temperature(0.0) // we want the most accurate transcription, no randomness
+                .temperature(transcriptionTemperature) // we want the most accurate transcription, no randomness
                 .responseFormat(AudioResponseFormat.JSON);  // gpt-4o-transcribe only supports json
 
-        if (language != null && !language.equals("detect")) transcriptionBuilder.language(language);
-        if (stylePrompt != null && !stylePrompt.isEmpty()) transcriptionBuilder.prompt(stylePrompt);
+        if (language != null && !language.equals("detect"))
+            transcriptionBuilder.language(language);
+
+        if (stylePrompt != null && !stylePrompt.isEmpty())
+            transcriptionBuilder.prompt(stylePrompt);
+
         if (sp.getBoolean("net.devemperor.dictate.proxy_enabled", false)) {
             if (DictateUtils.isValidProxy(proxyHost))
                 DictateUtils.applyProxy(clientBuilder, sp);
         }
 
         // Logging für die API-Anfrage (ohne API-Key)
-        Log.d("DictateAPI", "Transcription-API Request - URL: " + apiHost + ", Modell: " + transcriptionModel + ", Language: " + (language != null ? language : "detect") + ", Prompt: " + (stylePrompt != null && !stylePrompt.isEmpty() ? stylePrompt : "none"));
+        Log.d("DictateAPI", "Transcription-API Request - URL: " + apiHost + ", Modell: " + transcriptionModel + ", Language: " + (language != null ? language : "detect") + ", Temperature: " + transcriptionTemperature + ", Prompt: " + (stylePrompt != null && !stylePrompt.isEmpty() ? stylePrompt : "none"));
 
         Transcription transcription = clientBuilder.build().audio().transcriptions().create(transcriptionBuilder.build()).asTranscription();
         String resultText = transcription.text().strip();  // Groq sometimes adds leading whitespace
@@ -1868,8 +1873,11 @@ public class DictateInputMethodService extends InputMethodService {
         return resultText;
     }
 
-    public static String performRewording(Context context, PromptModel model, String textToReword, UsageDatabaseHelper usageDb) throws Exception {
+    public static String performRewording(Context context, PromptModel model, String textToReword, UsageDatabaseHelper usageDb) throws Exception
+    {
         SharedPreferences sp = context.getSharedPreferences("net.devemperor.dictate", Context.MODE_PRIVATE);
+
+        float rewordingTemperature = sp.getFloat("net.devemperor.dictate.rewording_temperature", 0.7f);
 
         int rewordingProvider = sp.getInt("net.devemperor.dictate.rewording_provider", 0);
         String apiHost = context.getResources().getStringArray(R.array.dictate_api_providers_values)[rewordingProvider];
@@ -1901,9 +1909,13 @@ public class DictateInputMethodService extends InputMethodService {
         }
         else
         {
-            ChatCompletionCreateParams.Builder chatCompletionBuilder = ChatCompletionCreateParams.builder().model(rewordingModel);
+            ChatCompletionCreateParams.Builder chatCompletionBuilder
+                    = ChatCompletionCreateParams
+                        .builder()
+                        .temperature(rewordingTemperature)
+                        .model(rewordingModel);
 
-            Log.d("DictateAPI", "Rewording-Request - URL: " + apiHost + ", Modell: " + rewordingModel);
+            Log.d("DictateAPI", "Rewording API Request - URL: " + apiHost + ", Modell: " + rewordingModel + ", Temperature: " + rewordingTemperature);
 
             String userMessage = null;
             if (sp.getBoolean("net.devemperor.dictate.use_prompt_as_system_prompt", false)) {
