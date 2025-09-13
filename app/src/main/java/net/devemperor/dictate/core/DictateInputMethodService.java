@@ -50,6 +50,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 //import com.google.firebase.crashlytics.FirebaseCrashlytics;
 import com.openai.client.okhttp.OpenAIOkHttpClient;
 import com.openai.models.audio.AudioResponseFormat;
@@ -70,6 +71,7 @@ import net.devemperor.dictate.rewording.PromptEditActivity;
 import net.devemperor.dictate.rewording.PromptsDatabaseHelper;
 import net.devemperor.dictate.rewording.PromptsKeyboardAdapter;
 import net.devemperor.dictate.rewording.PromptsOverviewActivity;
+import net.devemperor.dictate.settings.AccessibilityDialogActivity;
 import net.devemperor.dictate.settings.DictateSettingsActivity;
 import net.devemperor.dictate.R;
 import net.devemperor.dictate.usage.UsageDatabaseHelper;
@@ -1946,18 +1948,26 @@ public class DictateInputMethodService extends InputMethodService {
             {
                 Log.d("DictateAPI", "Taking screenshot as requested by prompt");
                 try {
-                    String screenshotPath = DictateUtils.takeScreenshot(context);
-                    Log.d("DictateAPI", "Screenshot saved to: " + screenshotPath);
-                    if (screenshotPath == null || screenshotPath.isEmpty()) {
-                        new Handler(Looper.getMainLooper()).post(() ->
-                                android.widget.Toast.makeText(context.getApplicationContext(),
-                                        context.getString(R.string.dictate_screenshot_failed),
-                                        android.widget.Toast.LENGTH_SHORT).show()
-                        );
-                        return "";
+                    String screenshotResult = DictateUtils.takeScreenshot(context);
+                    Log.d("DictateAPI", "Screenshot result: " + screenshotResult);
+
+                    switch (screenshotResult) {
+                        case "SERVICE_DISABLED":
+                            Intent intent = new Intent(context, AccessibilityDialogActivity.class);
+                            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                            context.startActivity(intent);
+                            return "";
+                        case "SERVICE_NOT_BOUND":
+                        case "FAILED":
+                            new Handler(Looper.getMainLooper()).post(() ->
+                                    Toast.makeText(context.getApplicationContext(),
+                                            context.getString(R.string.dictate_screenshot_failed),
+                                            Toast.LENGTH_SHORT).show()
+                            );
+                            return "";
                     }
 
-                    byte[] bytes = Files.readAllBytes(Paths.get(screenshotPath));
+                    byte[] bytes = Files.readAllBytes(Paths.get(screenshotResult));
                     String b64 = Base64.encodeToString(bytes, Base64.NO_WRAP); // keine Zeilenumbrüche!
                     String dataUrl = "data:image/png;base64," + b64;
 
@@ -1979,7 +1989,7 @@ public class DictateInputMethodService extends InputMethodService {
                                 );
                     chatCompletionBuilder.addUserMessageOfArrayOfContentParts(Arrays.asList(textPart, imagePart));
 
-                    Log.d("DictateAPI", "Screenshot aufgenommen: " + screenshotPath);
+                    Log.d("DictateAPI", "Screenshot RESULT: " + screenshotResult);
                 } catch (Exception e) {
                     Log.e("DictateAPI", "Fehler beim Aufnehmen des Screenshots", e);
                 }

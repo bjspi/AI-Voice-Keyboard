@@ -243,4 +243,5 @@
     <string name="dictate_no_text_to_rephrase">Keinen Text zum Umschreiben</string>
     <string name="dictate_rephrasing">Umschreiben ...</string>
     <string name="dictate_rephrasing_error">Fehler beim Umschreiben: %1$s</string>
+    <string name="dictate_screenshot_failed">Screenshot konnte nicht wie in der Überarbeitungsanweisung konfiguriert erstellt werden. Vorgang wird nicht fortgesetzt.</string>
 </resources>

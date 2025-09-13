@@ -17,10 +17,12 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import android.content.Context;
+import android.content.ComponentName;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.media.MediaMetadataRetriever;
 import android.os.Build;
+import android.text.TextUtils;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
@@ -386,12 +388,32 @@ public class DictateUtils {
         return result.toString();
     }
 
+    public static boolean isAccessibilityServiceEnabled(Context context, Class<?> accessibilityServiceClass) {
+        ComponentName expectedComponentName = new ComponentName(context, accessibilityServiceClass);
+        String enabledServicesSetting = android.provider.Settings.Secure.getString(context.getContentResolver(), android.provider.Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
+        if (enabledServicesSetting == null) return false;
+        TextUtils.SimpleStringSplitter colonSplitter = new TextUtils.SimpleStringSplitter(':');
+        colonSplitter.setString(enabledServicesSetting);
+        while (colonSplitter.hasNext()) {
+            String componentNameString = colonSplitter.next();
+            ComponentName enabledService = ComponentName.unflattenFromString(componentNameString);
+            if (enabledService != null && enabledService.equals(expectedComponentName)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     @RequiresApi(api = Build.VERSION_CODES.R)
     public static String takeScreenshot(Context context) {
+        if (!isAccessibilityServiceEnabled(context, DictateAccessibilityService.class)) {
+            return "SERVICE_DISABLED";
+        }
+
         DictateAccessibilityService service = DictateAccessibilityService.getInstance();
         if (service == null) {
-            Log.e("Dictate", "Accessibility service not found");
-            return null;
+            Log.e("Dictate", "Accessibility service is enabled but not bound.");
+            return "SERVICE_NOT_BOUND";
         }
 
         File screenshotFile = new File(context.getCacheDir(), "screenshot.png");
@@ -413,6 +435,7 @@ public class DictateUtils {
 
             @Override
             public void onFailure(int errorCode) {
+                Log.e("Dictate", "Screenshot failed with error code: " + errorCode);
                 latch.countDown();
             }
         });
@@ -426,7 +449,7 @@ public class DictateUtils {
         if (success[0]) {
             return screenshotFile.getAbsolutePath();
         } else {
-            return null;
+            return "FAILED";
         }
     }
 }
