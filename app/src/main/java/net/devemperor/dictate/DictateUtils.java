@@ -1,5 +1,6 @@
 package net.devemperor.dictate;
 
+import android.accessibilityservice.AccessibilityService;
 import android.content.SharedPreferences;
 import android.media.MediaMetadataRetriever;
 
@@ -15,10 +16,35 @@ import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import android.content.Context;
+import android.content.SharedPreferences;
+import android.graphics.Bitmap;
+import android.media.MediaMetadataRetriever;
+import android.os.Build;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.RequiresApi;
+
+import com.openai.client.okhttp.OpenAIOkHttpClient;
+
+import net.devemperor.dictate.core.DictateAccessibilityService;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.net.Authenticator;
+import java.net.InetSocketAddress;
+import java.net.PasswordAuthentication;
+import java.net.Proxy;
+import java.text.BreakIterator;
+import java.util.Locale;
+import java.util.concurrent.CountDownLatch;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 public class DictateUtils {
 
     public static final String PROMPT_PUNCTUATION_CAPITALIZATION = "This sentence has capitalization and punctuation.";
-    //public static final String PROMPT_REWORDING_BE_PRECISE = "Be accurate with your output. Only output exactly what the user has asked for above. Do not add any text before or after the actual output. Output the text in the language of the instruction, unless a different language was explicitly requested.";
 
     public static double calcModelCost(String modelName, long audioTime, long inputTokens, long outputTokens) {
         switch (modelName) {
@@ -50,9 +76,9 @@ public class DictateUtils {
 
             // Groq transcription models
             case "whisper-large-v3-turbo":
-                return audioTime * 0.000011;  // rounded up
+                return audioTime * 0.000011;
             case "whisper-large-v3":
-                return audioTime * 0.000031;  // rounded up
+                return audioTime * 0.000031;
 
             // Groq rewording models
             case "llama-3.1-8b-instant":
@@ -357,5 +383,48 @@ public class DictateUtils {
             }
         }
         return result.toString();
+    }
+
+    @RequiresApi(api = Build.VERSION_CODES.R)
+    public static String takeScreenshot(Context context) {
+        DictateAccessibilityService service = DictateAccessibilityService.getInstance();
+        if (service == null) {
+            return null;
+        }
+
+        File screenshotFile = new File(context.getCacheDir(), "screenshot.png");
+        CountDownLatch latch = new CountDownLatch(1);
+        final boolean[] success = {false};
+
+        service.takeScreenshot(context.getDisplay().getDisplayId(), context.getMainExecutor(), new AccessibilityService.TakeScreenshotCallback() {
+            @Override
+            public void onSuccess(@NonNull AccessibilityService.ScreenshotResult screenshot) {
+                try (FileOutputStream fos = new FileOutputStream(screenshotFile)) {
+                    Bitmap bitmap = Bitmap.wrapHardwareBuffer(screenshot.getHardwareBuffer(), screenshot.getColorSpace());
+                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, fos);
+                    success[0] = true;
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                latch.countDown();
+            }
+
+            @Override
+            public void onFailure(int errorCode) {
+                latch.countDown();
+            }
+        });
+
+        try {
+            latch.await();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        if (success[0]) {
+            return screenshotFile.getAbsolutePath();
+        } else {
+            return null;
+        }
     }
 }

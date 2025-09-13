@@ -39,6 +39,7 @@ import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.util.Base64;
 
 import androidx.appcompat.content.res.AppCompatResources;
 import androidx.constraintlayout.widget.ConstraintLayout;
@@ -56,6 +57,11 @@ import com.openai.models.audio.transcriptions.Transcription;
 import com.openai.models.audio.transcriptions.TranscriptionCreateParams;
 import com.openai.models.chat.completions.ChatCompletion;
 import com.openai.models.chat.completions.ChatCompletionCreateParams;
+import com.openai.models.chat.completions.ChatCompletionContentPart;
+import com.openai.models.chat.completions.ChatCompletionContentPartImage;
+import com.openai.models.chat.completions.ChatCompletionContentPartText;
+import com.openai.models.chat.completions.ChatCompletionCreateParams;
+
 
 import net.devemperor.dictate.BuildConfig;
 import net.devemperor.dictate.DictateUtils;
@@ -74,6 +80,8 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -469,7 +477,7 @@ public class DictateInputMethodService extends InputMethodService {
                 try {
                     recorder.stop();
                 }
-                catch (RuntimeException ignored) { }
+                catch (RuntimeException ignored) { } // Ignore exceptions if recorder is not in a valid state
                 recorder.release();
                 recorder = null;
 
@@ -546,7 +554,7 @@ public class DictateInputMethodService extends InputMethodService {
             } else {
                 spaceButton.setCompoundDrawablesRelativeWithIntrinsicBounds(0, 0, 0, 0);
             }
-            return false;
+            return false; // Erlaube die normale onClick-Aktion für normales Tippen
         });
 
         pauseButton.setOnClickListener(v -> {
@@ -719,7 +727,7 @@ public class DictateInputMethodService extends InputMethodService {
         });
 
         // initialize all edit buttons
-        Object[][] buttonsActions = {
+        Object[][] buttonsActions = { 
                 { editUndoButton, android.R.id.undo },
                 { editRedoButton, android.R.id.redo },
                 { editCutButton,  android.R.id.cut },
@@ -765,7 +773,7 @@ public class DictateInputMethodService extends InputMethodService {
         if (recorder != null) {
             try {
                 recorder.stop();
-            } catch (RuntimeException ignored) { }
+            } catch (RuntimeException ignored) { } // Ignore exceptions if recorder is not in a valid state
             recorder.release();
             recorder = null;
 
@@ -965,7 +973,7 @@ public class DictateInputMethodService extends InputMethodService {
             }
 
             // enable resend button if previous audio file still exists in cache
-            if (getLastAudioFile().exists()
+            if (getLastAudioFile().exists() 
                     && sp.getBoolean("net.devemperor.dictate.resend_button", false) && !isRecording) {
                 resendButton.setVisibility(View.VISIBLE);
             } else {
@@ -1897,6 +1905,7 @@ public class DictateInputMethodService extends InputMethodService {
 
             Log.d("DictateAPI", "Rewording-Request - URL: " + apiHost + ", Modell: " + rewordingModel);
 
+            String userMessage = null;
             if (sp.getBoolean("net.devemperor.dictate.use_prompt_as_system_prompt", false)) {
                 chatCompletionBuilder.addSystemMessage(prompt);
 
@@ -1907,7 +1916,7 @@ public class DictateInputMethodService extends InputMethodService {
                     //Log.e("DictateAPI", "Fehler beim Hinzufügen von System-Prompt oder User-Message", e);
                 }
 
-                chatCompletionBuilder.addUserMessage(textToReword);
+                userMessage = textToReword;
             } else {
                 prompt += "\n\n";
                 prompt += "\n\n" + textToReword;
@@ -1917,7 +1926,42 @@ public class DictateInputMethodService extends InputMethodService {
                     //Log.e("DictateAPI", "Fehler beim Hinzufügen von System-Prompt oder User-Message", e);
                 }
 
-                chatCompletionBuilder.addUserMessage(prompt);
+                userMessage = prompt;
+            }
+
+            if(model.isSendScreenshot() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R)
+            {
+                try {
+                    String screenshotPath = DictateUtils.takeScreenshot(context);
+
+                    byte[] bytes = Files.readAllBytes(Paths.get(screenshotPath));
+                    String b64 = Base64.encodeToString(bytes, Base64.NO_WRAP); // keine Zeilenumbrüche!
+                    String dataUrl = "data:image/png;base64," + b64;
+
+                    ChatCompletionContentPart textPart =
+                            ChatCompletionContentPart.ofText(
+                                    ChatCompletionContentPartText.builder()
+                                            .text(userMessage)
+                                            .build()
+                            );
+
+                    ChatCompletionContentPart imagePart = ChatCompletionContentPart.ofImageUrl(
+                                    ChatCompletionContentPartImage.builder()
+                                            .imageUrl(
+                                                    ChatCompletionContentPartImage.ImageUrl.builder()
+                                                            .url(dataUrl)          // WICHTIG: komplette Data-URL
+                                                            .build()
+                                            ).build()
+                                );
+                    chatCompletionBuilder.addUserMessageOfArrayOfContentParts(Arrays.asList(textPart, imagePart));
+
+                    Log.d("DictateAPI", "Screenshot aufgenommen: " + screenshotPath);
+                } catch (Exception e) {
+                    Log.e("DictateAPI", "Fehler beim Aufnehmen des Screenshots", e);
+                }
+            }
+            else {
+                chatCompletionBuilder.addUserMessage(userMessage);
             }
 
             ChatCompletionCreateParams chatCompletionCreateParams = chatCompletionBuilder.build();
@@ -1928,6 +1972,8 @@ public class DictateInputMethodService extends InputMethodService {
                 usageDb.edit(rewordingModel, 0, chatCompletion.usage().get().promptTokens(), chatCompletion.usage().get().completionTokens(), rewordingProvider);
             }
         }
+
+
         return rewordedText;
     }
 
@@ -2001,7 +2047,6 @@ public class DictateInputMethodService extends InputMethodService {
         }
     };
 
-    // New: Method to register the Bluetooth receiver
     private void registerBluetoothReceiver() {
         IntentFilter filter = new IntentFilter();
         filter.addAction(BluetoothHeadset.ACTION_CONNECTION_STATE_CHANGED);
@@ -2070,4 +2115,3 @@ public class DictateInputMethodService extends InputMethodService {
     }
 
 }
-

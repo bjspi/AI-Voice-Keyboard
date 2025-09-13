@@ -1,13 +1,17 @@
 package net.devemperor.dictate.rewording;
 
+import android.content.ContentResolver;
 import android.content.Intent;
 import android.os.Bundle;
+import android.provider.Settings;
 import android.text.Editable;
+import android.text.TextUtils;
 import android.view.MenuItem;
 import android.widget.EditText;
 
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.ActionBar;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
@@ -18,6 +22,7 @@ import com.google.android.material.materialswitch.MaterialSwitch;
 
 import net.devemperor.dictate.R;
 import net.devemperor.dictate.SimpleTextWatcher;
+import net.devemperor.dictate.core.DictateAccessibilityService;
 
 public class PromptEditActivity extends AppCompatActivity {
 
@@ -44,6 +49,7 @@ public class PromptEditActivity extends AppCompatActivity {
         EditText promptPromptEt = findViewById(R.id.prompt_edit_prompt_et);
         MaterialSwitch promptRequiresSelectionSwitch = findViewById(R.id.prompt_edit_requires_selection_switch);
         MaterialSwitch promptAlwaysUseSwitch = findViewById(R.id.prompt_edit_always_use_switch);
+        MaterialSwitch promptSendScreenshotSwitch = findViewById(R.id.prompt_edit_send_screenshot_switch);
         MaterialButton savePromptBtn = findViewById(R.id.prompt_edit_save_btn);
 
         db = new PromptsDatabaseHelper(this);
@@ -69,6 +75,8 @@ public class PromptEditActivity extends AppCompatActivity {
             if (hasAlwaysUsePrompt && !model.isAlwaysUse()) {
                 promptAlwaysUseSwitch.setEnabled(false);
             }
+
+            promptSendScreenshotSwitch.setChecked(model.isSendScreenshot());
             savePromptBtn.setEnabled(true);
         } else {
             // For new prompts, disable alwaysUse if another prompt already has it
@@ -105,6 +113,7 @@ public class PromptEditActivity extends AppCompatActivity {
             String prompt = promptPromptEt.getText().toString();
             boolean requiresSelection = promptRequiresSelectionSwitch.isChecked();
             boolean alwaysUse = promptAlwaysUseSwitch.isChecked();
+            boolean sendScreenshot = promptSendScreenshotSwitch.isChecked();
 
             // If "Always use" is checked, ensure only this prompt has it set
             if (alwaysUse) {
@@ -119,7 +128,7 @@ public class PromptEditActivity extends AppCompatActivity {
 
             Intent result = new Intent();
             if (id == -1) {
-                int addId = db.add(new PromptModel(0, db.count(), name, prompt, requiresSelection, alwaysUse));
+                int addId = db.add(new PromptModel(0, db.count(), name, prompt, requiresSelection, alwaysUse, sendScreenshot));
                 result.putExtra("added_id", addId);
             } else {
                 PromptModel model = db.get(id);
@@ -127,6 +136,7 @@ public class PromptEditActivity extends AppCompatActivity {
                 model.setPrompt(prompt);
                 model.setRequiresSelection(requiresSelection);
                 model.setAlwaysUse(alwaysUse);
+                model.setSendScreenshot(sendScreenshot);
                 db.update(model);
                 result.putExtra("updated_id", id);
             }
@@ -149,5 +159,22 @@ public class PromptEditActivity extends AppCompatActivity {
             return true;
         }
         return super.onOptionsItemSelected(item);
+    }
+
+    private boolean isAccessibilityServiceEnabled() {
+        ContentResolver contentResolver = getContentResolver();
+        String enabledServices = Settings.Secure.getString(contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
+        if (enabledServices == null) {
+            return false;
+        }
+        TextUtils.SimpleStringSplitter colonSplitter = new TextUtils.SimpleStringSplitter(':');
+        colonSplitter.setString(enabledServices);
+        while (colonSplitter.hasNext()) {
+            String componentName = colonSplitter.next();
+            if (componentName.equalsIgnoreCase(getPackageName() + "/" + DictateAccessibilityService.class.getName())) {
+                return true;
+            }
+        }
+        return false;
     }
 }

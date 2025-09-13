@@ -119,6 +119,11 @@
     <string name="dictate_delete_prompt_message">Bist du sicher, dass du diese Anweisung löschen möchtest?</string>
     <string name="dictate_requires_selection">Erfordert Textauswahl</string>
     <string name="dictate_always_use_for_every_transcription">Automatisch auf jede Transkription anwenden</string>
+    <string name="dictate_send_screenshot">Screenshot mitschicken</string>
+    <string name="dictate_accessibility_service_disabled_title">Eingabehilfe deaktiviert</string>
+    <string name="dictate_accessibility_service_disabled_message">Um Screenshots zu senden, müssen Sie den Eingabehilfedienst für Dictate in den Systemeinstellungen aktivieren.</string>
+    <string name="dictate_open_settings">Einstellungen öffnen</string>
+    <string name="dictate_screenshot_not_supported">Screenshots werden auf Ihrem Gerät nicht unterstützt.</string>
     <string name="dictate_save">Speichern</string>
     <string name="dictate_edit_prompt_name_hint">Gib einen Namen für diese Anweisung ein</string>
     <string name="dictate_edit_prompt_prompt_hint">Gib hier eine Anweisung ein, was das GPT-Modell mit deinem Text machen soll.\n\nWenn du \"Erfordert Textauswahl\" ausgewählt hast, wird dein ausgewählter Text automatisch mit gesendet.\n\nUm genau einen bestimmten Text auszugeben, füge [ und ] an den Anfang und das Ende des Prompts, und es wird genau der Text in den Klammern ausgegeben.</string>

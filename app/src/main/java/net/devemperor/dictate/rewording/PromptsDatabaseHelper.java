@@ -17,7 +17,7 @@ public class PromptsDatabaseHelper extends SQLiteOpenHelper {
     private final Context context;
 
     public PromptsDatabaseHelper(@Nullable Context context) {
-        super(context, "prompts.db", null, 2);
+        super(context, "prompts.db", null, 3);
         this.context = context;
     }
 
@@ -32,6 +32,7 @@ public class PromptsDatabaseHelper extends SQLiteOpenHelper {
         cv.put("PROMPT", context.getString(R.string.dictate_example_prompt_one_prompt));
         cv.put("REQUIRES_SELECTION", 1);
         cv.put("ALWAYS_USE", 0);
+        cv.put("SEND_SCREENSHOT", 0);
         sqLiteDatabase.insert("PROMPTS", null, cv);
 
         cv = new ContentValues();
@@ -40,6 +41,7 @@ public class PromptsDatabaseHelper extends SQLiteOpenHelper {
         cv.put("PROMPT", context.getString(R.string.dictate_example_prompt_two_prompt));
         cv.put("REQUIRES_SELECTION", 1);
         cv.put("ALWAYS_USE", 0);
+        cv.put("SEND_SCREENSHOT", 0);
         sqLiteDatabase.insert("PROMPTS", null, cv);
 
         cv = new ContentValues();
@@ -48,6 +50,7 @@ public class PromptsDatabaseHelper extends SQLiteOpenHelper {
         cv.put("PROMPT", context.getString(R.string.dictate_example_prompt_three_prompt));
         cv.put("REQUIRES_SELECTION", 1);
         cv.put("ALWAYS_USE", 0);
+        cv.put("SEND_SCREENSHOT", 0);
         sqLiteDatabase.insert("PROMPTS", null, cv);
 
         cv = new ContentValues();
@@ -56,6 +59,7 @@ public class PromptsDatabaseHelper extends SQLiteOpenHelper {
         cv.put("PROMPT", context.getString(R.string.dictate_example_prompt_four_prompt));
         cv.put("REQUIRES_SELECTION", 1);
         cv.put("ALWAYS_USE", 0);
+        cv.put("SEND_SCREENSHOT", 0);
         sqLiteDatabase.insert("PROMPTS", null, cv);
 
         cv = new ContentValues();
@@ -64,6 +68,7 @@ public class PromptsDatabaseHelper extends SQLiteOpenHelper {
         cv.put("PROMPT", context.getString(R.string.dictate_example_prompt_five_prompt));
         cv.put("REQUIRES_SELECTION", 1);
         cv.put("ALWAYS_USE", 0);
+        cv.put("SEND_SCREENSHOT", 0);
         sqLiteDatabase.insert("PROMPTS", null, cv);
 
         cv = new ContentValues();
@@ -72,6 +77,7 @@ public class PromptsDatabaseHelper extends SQLiteOpenHelper {
         cv.put("PROMPT", context.getString(R.string.dictate_example_prompt_six_prompt));
         cv.put("REQUIRES_SELECTION", 1);
         cv.put("ALWAYS_USE", 0);
+        cv.put("SEND_SCREENSHOT", 0);
         sqLiteDatabase.insert("PROMPTS", null, cv);
     }
 
@@ -81,6 +87,12 @@ public class PromptsDatabaseHelper extends SQLiteOpenHelper {
             // Check if the ALWAYS_USE column exists, and add it if it doesn't
             if (!columnExists(sqLiteDatabase, "PROMPTS", "ALWAYS_USE")) {
                 sqLiteDatabase.execSQL("ALTER TABLE PROMPTS ADD COLUMN ALWAYS_USE BOOLEAN DEFAULT 0");
+            }
+        }
+        if (oldVersion < 3) {
+            // Check if the SEND_SCREENSHOT column exists, and add it if it doesn't
+            if (!columnExists(sqLiteDatabase, "PROMPTS", "SEND_SCREENSHOT")) {
+                sqLiteDatabase.execSQL("ALTER TABLE PROMPTS ADD COLUMN SEND_SCREENSHOT BOOLEAN DEFAULT 0");
             }
         }
     }
@@ -119,6 +131,7 @@ public class PromptsDatabaseHelper extends SQLiteOpenHelper {
         cv.put("PROMPT", model.getPrompt());
         cv.put("REQUIRES_SELECTION", model.requiresSelection());
         cv.put("ALWAYS_USE", model.isAlwaysUse());
+        cv.put("SEND_SCREENSHOT", model.isSendScreenshot());
         long result = db.insert("PROMPTS", null, cv);
         db.close();
         return (int) result;
@@ -132,6 +145,7 @@ public class PromptsDatabaseHelper extends SQLiteOpenHelper {
         cv.put("PROMPT", model.getPrompt());
         cv.put("REQUIRES_SELECTION", model.requiresSelection());
         cv.put("ALWAYS_USE", model.isAlwaysUse());
+        cv.put("SEND_SCREENSHOT", model.isSendScreenshot());
         db.update("PROMPTS", cv, "ID = " + model.getId(), null);
         db.close();
     }
@@ -147,7 +161,15 @@ public class PromptsDatabaseHelper extends SQLiteOpenHelper {
         Cursor cursor = db.rawQuery("SELECT * FROM PROMPTS WHERE ID = " + id, null);
         PromptModel model = null;
         if (cursor.moveToFirst()) {
-            model = new PromptModel(cursor.getInt(0), cursor.getInt(1), cursor.getString(2), cursor.getString(3), cursor.getInt(4) == 1, cursor.getInt(5) == 1);
+            model = new PromptModel(
+                    cursor.getInt(0),
+                    cursor.getInt(1),
+                    cursor.getString(2),
+                    cursor.getString(3),
+                    cursor.getInt(4) == 1,
+                    cursor.getInt(5) == 1,
+                    cursor.getInt(6) == 1
+            );
         }
         cursor.close();
         db.close();

@@ -10,6 +10,7 @@ public class PromptModel {
     String prompt;
     boolean requiresSelection;
     boolean alwaysUse;
+    boolean sendScreenshot;
 
     public PromptModel() {
         // Default constructor for Gson
@@ -22,6 +23,7 @@ public class PromptModel {
         this.prompt = prompt;
         this.requiresSelection = requiresSelection;
         this.alwaysUse = false;  // Default value
+        this.sendScreenshot = false;  // Default value
     }
 
     public PromptModel(int id, int pos, String name, String prompt, boolean requiresSelection, boolean alwaysUse) {
@@ -31,6 +33,17 @@ public class PromptModel {
         this.prompt = prompt;
         this.requiresSelection = requiresSelection;
         this.alwaysUse = alwaysUse;
+        this.sendScreenshot = false; // Default value
+    }
+
+    public PromptModel(int id, int pos, String name, String prompt, boolean requiresSelection, boolean alwaysUse, boolean sendScreenshot) {
+        this.id = id;
+        this.pos = pos;
+        this.name = name;
+        this.prompt = prompt;
+        this.requiresSelection = requiresSelection;
+        this.alwaysUse = alwaysUse;
+        this.sendScreenshot = sendScreenshot;
     }
 
     public int getId() {
@@ -79,5 +92,13 @@ public class PromptModel {
 
     public void setAlwaysUse(boolean alwaysUse) {
         this.alwaysUse = alwaysUse;
+    }
+
+    public boolean isSendScreenshot() {
+        return this.sendScreenshot;
+    }
+
+    public void setSendScreenshot(boolean sendScreenshot) {
+        this.sendScreenshot = sendScreenshot;
     }
 }
