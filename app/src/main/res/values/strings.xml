@@ -131,6 +131,7 @@
     <string name="dictate_accessibility_service_disabled_message">To send screenshots, you need to enable the accessibility service for Dictate in the system settings.</string>
     <string name="dictate_open_settings">Open settings</string>
     <string name="dictate_screenshot_not_supported">Screenshots are not supported on your device.</string>
+    <string name="dictate_screenshot_not_supported_api">Screenshots are only supported by OpenAI</string>
     <string name="dictate_save">Save</string>
     <string name="dictate_edit_prompt_name_hint">Enter a name for this prompt</string>
     <string name="dictate_edit_prompt_prompt_hint">Enter an instruction here as to what the GPT model should do with your text.\n\nIf you have selected \"requires text selection\", your selected text will be sent automatically.\n\nTo output exactly a certain text, add [ and ] to the beginning and end of the prompt and exactly the text in the brackets will be printed.</string>

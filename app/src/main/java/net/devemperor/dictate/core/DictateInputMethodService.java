@@ -1955,7 +1955,7 @@ public class DictateInputMethodService extends InputMethodService {
             }
 
             Log.d("DictateAPI", "State vars: Screenshot = " + model.isSendScreenshot() + ", SDK min = " + (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R));
-            if(model.isSendScreenshot() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R)
+            if(apiHost.contains("openai.com") && model.isSendScreenshot() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R)
             {
                 Log.d("DictateAPI", "Taking screenshot as requested by prompt");
                 try {
@@ -2004,8 +2004,15 @@ public class DictateInputMethodService extends InputMethodService {
                 } catch (Exception e) {
                     Log.e("DictateAPI", "Fehler beim Aufnehmen des Screenshots", e);
                 }
-            }
-            else {
+            } else if (!apiHost.contains("openai.com") && model.isSendScreenshot()) {
+                // Groq und Custom-Server unterstützen keine Bilder
+                // Show a Toast:
+                new Handler(Looper.getMainLooper()).post(() ->
+                        Toast.makeText(context.getApplicationContext(),
+                                context.getString(R.string.dictate_screenshot_not_supported_api),
+                                Toast.LENGTH_SHORT).show()
+                );
+            } else {
                 chatCompletionBuilder.addUserMessage(userMessage);
             }
 
@@ -2017,7 +2024,6 @@ public class DictateInputMethodService extends InputMethodService {
                 usageDb.edit(rewordingModel, 0, chatCompletion.usage().get().promptTokens(), chatCompletion.usage().get().completionTokens(), rewordingProvider);
             }
         }
-
 
         return rewordedText;
     }
