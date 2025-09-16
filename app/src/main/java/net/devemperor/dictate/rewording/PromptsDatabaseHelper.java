@@ -23,7 +23,16 @@ public class PromptsDatabaseHelper extends SQLiteOpenHelper {
 
     @Override
     public void onCreate(SQLiteDatabase sqLiteDatabase) {
-        sqLiteDatabase.execSQL("CREATE TABLE PROMPTS (ID INTEGER PRIMARY KEY, POS INTEGER, NAME TEXT, PROMPT TEXT, REQUIRES_SELECTION BOOLEAN, ALWAYS_USE BOOLEAN)");
+        sqLiteDatabase.execSQL(" " +
+                "CREATE TABLE PROMPTS " +
+                "(ID INTEGER PRIMARY KEY, " +
+                " POS INTEGER, " +
+                " NAME TEXT, " +
+                " PROMPT TEXT, " +
+                " REQUIRES_SELECTION BOOLEAN, " +
+                " ALWAYS_USE BOOLEAN, " +
+                " SEND_SCREENSHOT BOOLEAN" +
+                ")");
 
         if (context == null) return;
         ContentValues cv = new ContentValues();
@@ -176,9 +185,9 @@ public class PromptsDatabaseHelper extends SQLiteOpenHelper {
         return model;
     }
 
-    public List<PromptModel> getAll() {
+    public List<PromptModel> getAllFromDB() {
         SQLiteDatabase db = getReadableDatabase();
-        Cursor cursor = db.rawQuery("SELECT * FROM PROMPTS ORDER BY POS", null);
+        Cursor cursor = db.rawQuery("SELECT * FROM PROMPTS ORDER BY POS ASC", null);
 
         List<PromptModel> models = new ArrayList<>();
         if (cursor.moveToFirst()) {
@@ -200,21 +209,38 @@ public class PromptsDatabaseHelper extends SQLiteOpenHelper {
         return models;
     }
 
-    public List<PromptModel> getAll(boolean requiresSelection) {
+    public List<PromptModel> getAllToDisplay() {
+        return getAllToDisplay(false, false, true);
+    }
+    public List<PromptModel> getAllToDisplay(boolean filterSelection, boolean requiresSelection) {
+        return getAllToDisplay(filterSelection, requiresSelection, true);
+    }
+    public List<PromptModel> getAllToDisplay(boolean filterSelection, boolean requiresSelection, boolean addInstantAddButtons)
+    {
         SQLiteDatabase db = getReadableDatabase();
-        Cursor cursor = db.rawQuery("SELECT * FROM PROMPTS WHERE REQUIRES_SELECTION = " + (requiresSelection ? 1 : 0) + " ORDER BY POS ASC", null);
+        String where = "";
+        if(filterSelection)
+            where = "WHERE REQUIRES_SELECTION = " + (requiresSelection ? 1 : 0);
+
+        Cursor cursor = db.rawQuery(
+                "SELECT * FROM PROMPTS " + filterSelection + " ORDER BY POS ASC",
+                null
+        );
 
         List<PromptModel> models = new ArrayList<>();
-        models.add(
-                new PromptModel(
-                        -1,
-                        Integer.MIN_VALUE,
-                        null,
-                        null,
-                        false,
-                        false,
-                        false
-                ));  // Add empty model for instant prompt
+        if (addInstantAddButtons)
+        {
+            models.add(
+                    new PromptModel(
+                            -1,
+                            Integer.MIN_VALUE,
+                            null,
+                            null,
+                            false,
+                            false,
+                            false
+                    ));  // Add empty model for instant prompt
+        }
 
         if (cursor.moveToFirst()) {
             do {
@@ -228,9 +254,19 @@ public class PromptsDatabaseHelper extends SQLiteOpenHelper {
                                 cursor.getInt(5) == 1,
                                 cursor.getInt(6) == 1
                         ));
-            } while (cursor.moveToNext());
+            }
+            while (cursor.moveToNext());
         }
-        models.add(new PromptModel(-2, Integer.MAX_VALUE, null, null, false, false, false));  // Add empty model for add button
+
+        if (addInstantAddButtons)
+        {
+            models.add(
+                    new PromptModel(
+                            -2, Integer.MAX_VALUE, null, null, false, false, false
+                    )
+            );  // Add empty model for add button
+        }
+
         cursor.close();
         db.close();
         return models;
@@ -251,7 +287,15 @@ public class PromptsDatabaseHelper extends SQLiteOpenHelper {
         Cursor cursor = db.rawQuery("SELECT * FROM PROMPTS WHERE ALWAYS_USE = 1 LIMIT 1", null);
         PromptModel model = null;
         if (cursor.moveToFirst()) {
-            model = new PromptModel(cursor.getInt(0), cursor.getInt(1), cursor.getString(2), cursor.getString(3), cursor.getInt(4) == 1, cursor.getInt(5) == 1);
+            model = new PromptModel(
+                        cursor.getInt(0),
+                        cursor.getInt(1),
+                        cursor.getString(2),
+                        cursor.getString(3),
+                        cursor.getInt(4) == 1,
+                        cursor.getInt(5) == 1,
+                        cursor.getInt(6) == 1
+                    );
         }
         cursor.close();
         db.close();
@@ -259,6 +303,7 @@ public class PromptsDatabaseHelper extends SQLiteOpenHelper {
     }
 
     public boolean hasAlwaysUsePrompt() {
+
         return getAlwaysUsePrompt() != null;
     }
 

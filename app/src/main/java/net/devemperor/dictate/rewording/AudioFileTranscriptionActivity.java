@@ -1,12 +1,10 @@
 package net.devemperor.dictate.rewording;
 
-import android.Manifest;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -21,18 +19,10 @@ import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
-import com.openai.client.okhttp.OpenAIOkHttpClient;
-import com.openai.models.audio.AudioResponseFormat;
-import com.openai.models.audio.transcriptions.Transcription;
-import com.openai.models.audio.transcriptions.TranscriptionCreateParams;
-
-import net.devemperor.dictate.BuildConfig;
-import net.devemperor.dictate.DictateUtils;
 import net.devemperor.dictate.core.DictateInputMethodService;
 import net.devemperor.dictate.R;
 import net.devemperor.dictate.usage.UsageDatabaseHelper;
@@ -41,19 +31,12 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.InetSocketAddress;
-import java.net.Proxy;
-import java.time.Duration;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
-import net.devemperor.dictate.rewording.PromptModel;
-import net.devemperor.dictate.rewording.PromptsDatabaseHelper;
-import net.devemperor.dictate.rewording.PromptsKeyboardAdapter;
 
 public class AudioFileTranscriptionActivity extends AppCompatActivity {
 
@@ -103,7 +86,7 @@ public class AudioFileTranscriptionActivity extends AppCompatActivity {
         promptsRv.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
 
         promptsDb = new PromptsDatabaseHelper(this);
-        List<PromptModel> prompts = promptsDb.getAll(true); // true to include instant prompts, we'll filter -1 later
+        List<PromptModel> prompts = promptsDb.getAllToDisplay(); // true to include instant prompts, we'll filter -1 later
 
         // Filter out prompt with ID -1 (Instant Prompt)
         List<PromptModel> filteredPrompts = new java.util.ArrayList<>();

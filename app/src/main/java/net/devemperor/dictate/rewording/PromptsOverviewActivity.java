@@ -61,7 +61,7 @@ public class PromptsOverviewActivity extends AppCompatActivity {
         }
 
         db = new PromptsDatabaseHelper(this);
-        data = db.getAll();
+        data = db.getAllFromDB();
 
         recyclerView = findViewById(R.id.prompts_overview_rv);
         recyclerView.setHasFixedSize(true);
@@ -166,7 +166,7 @@ public class PromptsOverviewActivity extends AppCompatActivity {
 
                                 // Refresh data
                                 this.data.clear();
-                                this.data.addAll(db.getAll());
+                                this.data.addAll(db.getAllFromDB());
                                 adapter.notifyDataSetChanged();
                                 findViewById(R.id.prompts_overview_no_prompts_tv).setVisibility(this.data.isEmpty() ? View.VISIBLE : View.GONE);
                                 
@@ -190,7 +190,7 @@ public class PromptsOverviewActivity extends AppCompatActivity {
                         if (data.getData() != null) {
                             try {
                                 // Get all prompts
-                                List<PromptModel> prompts = db.getAll();
+                                List<PromptModel> prompts = db.getAllFromDB();
 
                                 // Convert to JSON
                                 Gson gson = new Gson();

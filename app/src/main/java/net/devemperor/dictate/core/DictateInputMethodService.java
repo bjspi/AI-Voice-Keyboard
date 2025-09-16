@@ -50,7 +50,6 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.button.MaterialButton;
-import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 //import com.google.firebase.crashlytics.FirebaseCrashlytics;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -63,7 +62,6 @@ import com.openai.models.chat.completions.ChatCompletionCreateParams;
 import com.openai.models.chat.completions.ChatCompletionContentPart;
 import com.openai.models.chat.completions.ChatCompletionContentPartImage;
 import com.openai.models.chat.completions.ChatCompletionContentPartText;
-import com.openai.models.chat.completions.ChatCompletionCreateParams;
 
 
 import net.devemperor.dictate.BuildConfig;
@@ -871,7 +869,7 @@ public class DictateInputMethodService extends InputMethodService {
                 // Improve text selection detection
 
                 // No text selected, show all instant prompts and set select all icon
-                data = promptsDb.getAll();
+                data = promptsDb.getAllToDisplay();
                 editSelectAllButton.setForeground(AppCompatResources.getDrawable(this, R.drawable.ic_baseline_select_all_24));
 
                 promptsAdapter = new PromptsKeyboardAdapter(data, position -> {
@@ -1068,7 +1066,7 @@ public class DictateInputMethodService extends InputMethodService {
             List<PromptModel> data;
 
             // Always show all instant prompts even if no text is selected
-            data = promptsDb.getAll();
+            data = promptsDb.getAllToDisplay();
             editSelectAllButton.setForeground(AppCompatResources.getDrawable(this, R.drawable.ic_baseline_select_all_24));
 
             promptsAdapter.getData().clear();

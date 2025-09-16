@@ -138,7 +138,7 @@ public class PromptEditActivity extends AppCompatActivity {
             // If "Always use" is checked, ensure only this prompt has it set
             if (alwaysUse) {
                 // Set alwaysUse to false for all other prompts
-                for (PromptModel model : db.getAll()) {
+                for (PromptModel model : db.getAllFromDB()) {
                     if (model.getId() != id) {
                         model.setAlwaysUse(false);
                         db.update(model);
